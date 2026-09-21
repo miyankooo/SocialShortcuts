@@ -1,31 +1,31 @@
 # SocialShortcuts
 
-Modifier-click any player name to whisper, invite or add friend, for **WoW Forever 1.60.x** (Interface `16001`).
+Hold a modifier, left-click any player name, and whisper, invite or add them as a friend.
 
-Four Lua files, no libraries. Every action is bound to a modifier you choose in the in-game settings.
+## Features
 
-## What it does
-
-Hold a modifier and left-click a player name anywhere in the interface, and instead of the default behaviour you get one of three actions:
+**Three actions on a modifier-click.** Hold the modifier you assigned and left-click a player name, and instead of the default behaviour you get one of:
 
 | Action | What happens |
 | --- | --- |
-| **Whisper** | Opens a whisper. From chat and the player lists it opens a dedicated whisper tab and copies that conversation's backlog into it; from a unit frame it fills the normal whisper box |
-| **Invite to group** | `C_PartyInfo.InviteUnit` on the clicked player |
-| **Add friend** | `C_FriendList.AddFriend` on the clicked player |
+| Whisper | Opens a whisper. From chat and the player lists it opens a dedicated whisper tab and brings that conversation's backlog with it; from a unit frame it fills the normal whisper box |
+| Invite to group | Invites the clicked player |
+| Add friend | Adds the clicked player to your friends list |
 
-### Where it works
+**Works on every player name in the interface:**
 
-- **Chat** — any `player:` name link
-- **Unit frames** — target, focus, both targets-of-target, party frames, raid frames and raid-style party frames
-- **Friends list** — WoW friends and Battle.net friends
-- **Who list** — the Who tab of the Group Finder
-- **Group Finder browse** — the listing's leader
-- **Guild roster** — the Communities member list, which is the guild roster on this client
+- Chat — any clickable player name
+- Unit frames — target, focus, both targets-of-target, party frames and raid frames
+- Friends list — WoW friends and Battle.net friends
+- Who list — the Who tab of the Group Finder
+- Group Finder — the leader of a listing
+- Guild roster — the guild member list
 
-Battle.net friends route through the account APIs: whisper sends a BNet tell, invite uses the account's current game session, and add friend only works when that account is on a character of your realm.
+**Your own modifiers.** Every action is assigned in the in-game settings, and the modifier names match your platform: Mac users pick Command and Option, Windows users pick Windows and Alt.
 
-## Install
+**Battle.net aware.** A Battle.net friend gets a real BNet whisper, an invite to whatever character they are playing, and an add-friend that works when they are on your realm.
+
+## Installation
 
 Drop the `SocialShortcuts` folder into:
 
@@ -33,22 +33,20 @@ Drop the `SocialShortcuts` folder into:
 World of Warcraft/_classic_beta_/Interface/AddOns/
 ```
 
-## Configuration
+## Settings
 
 Open **Options → AddOns → Social Shortcuts**, or type `/socialshortcuts` (short form `/ssc`).
 
-Each action gets a dropdown listing every modifier the client can detect, plus *Unbound*. The client exposes exactly four modifiers, and their names depend on your platform:
+Each action has a dropdown listing every modifier the game can detect, plus *Unbound*. The names depend on your platform:
 
-| Binding | macOS | Windows |
-| --- | --- | --- |
-| `SHIFT` | Shift | Shift |
-| `CTRL` | Control | Ctrl |
-| `ALT` | Option | Alt |
-| `META` | Command | Windows |
+| macOS | Windows |
+| --- | --- |
+| Shift | Shift |
+| Control | Ctrl |
+| Option | Alt |
+| Command | Windows |
 
-The addon detects the platform with `IsMacClient()` and shows only the right names, so a Mac user picks *Command* and a Windows user picks *Windows* for the same physical binding.
-
-**Defaults** match the WeakAura this addon replaces:
+Defaults:
 
 | Action | macOS | Windows |
 | --- | --- | --- |
@@ -56,25 +54,21 @@ The addon detects the platform with `IsMacClient()` and shows only the right nam
 | Invite to group | Command | Alt |
 | Add friend | Option | Windows |
 
-Two rules keep the bindings unambiguous:
+Two rules keep the bindings predictable:
 
-- **Exactly one modifier must be held.** Holding Ctrl and Shift together matches nothing, so one chord can never trigger two actions.
-- **Assigning a modifier another action already uses swaps the two**, rather than silently unbinding the action you did not touch.
+- **Exactly one modifier must be held.** Holding Control and Shift together does nothing, so one key combination can never fire two actions.
+- **Picking a modifier another action already uses swaps the two**, instead of quietly unbinding the action you did not touch.
 
-Settings are per account (`SocialShortcutsDB`).
+Settings are saved per account.
 
-## Notes
+## Requirements
 
-**Replaces the Chat Shortcuts WeakAura.** If that aura is still enabled the addon says so at login, because both install the same hooks and every click would fire twice. Disable the aura and `/reload`.
+WoW Forever 1.60.x (Interface `16001`). No libraries, no dependencies.
 
-**Secret values.** Inside restricted content 1.60 hands player names to addons as secret values. The invite, friend and whisper APIs accept those directly, but comparing or lowercasing one throws, so the whisper-tab lookup is skipped for a secret name and a plain whisper is sent instead.
+## Restrictions
 
-**Taint.** Actions triggered from a unit frame never open a chat window, because doing that from a secure click taints the chat frame system.
+**Replaces the Chat Shortcuts WeakAura.** If that aura is still enabled the addon tells you at login, because both do the same job and every click would fire twice. Disable the aura and `/reload`.
 
-## Compatibility
+**Inside restricted content** the game hides player names from addons. Whispers still work, but they open in the normal whisper box rather than a dedicated tab.
 
-Written against build `1.60.1.69913` and verified against the `forever` branch of [Gethe/wow-ui-source](https://github.com/Gethe/wow-ui-source). Every API, frame, template and click path it hooks was confirmed present in that source, including the `camelot` game-type variants that replace the classic friends and guild frames. It has not yet been run in game.
-
-## Licence
-
-MIT
+**Not yet run in game.** Every part of the game interface this addon touches was checked against Blizzard's published 1.60.1 UI source, but it has not been tested on a live character.
