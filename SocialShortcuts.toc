@@ -1,0 +1,16 @@
+## Interface: 16001
+## Title: Social Shortcuts
+## Notes: Modifier-click a player name anywhere to whisper, invite or add friend.
+## Author: miyanko
+## Version: 1.0.0
+## IconTexture: Interface\Icons\UI_Chat
+## SavedVariables: SocialShortcutsDB
+## X-Category: Chat & Communication
+
+# Load order is the dependency order: Config exports the binding lookup, Actions the three things a
+# binding can do, and Hooks wires the click surfaces to both. UI only reads what Config already set up.
+
+Core\Config.lua
+Core\Actions.lua
+Core\Hooks.lua
+UI\Options.lua
