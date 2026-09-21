@@ -69,6 +69,6 @@ WoW Forever 1.60.x (Interface `16001`). No libraries, no dependencies.
 
 **Replaces the Chat Shortcuts WeakAura.** If that aura is still enabled the addon tells you at login, because both do the same job and every click would fire twice. Disable the aura and `/reload`.
 
-**Inside restricted content** the game hides player names from addons. Whispers still work, but they open in the normal whisper box rather than a dedicated tab.
+**Inside restricted content** the game hides player names from addons. Whispers still work, but they open in the normal whisper box rather than a dedicated tab, and clicks on chat names are ignored.
 
 **Not yet run in game.** Every part of the game interface this addon touches was checked against Blizzard's published 1.60.1 UI source, but it has not been tested on a live character.

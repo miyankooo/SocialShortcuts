@@ -58,7 +58,7 @@ function ns.RunAction(action, name, openTab, source)
   if not name then return end
 
   if action == "whisper" then
-    if openTab and ns.CanAccess(name) then
+    if openTab and not ns.ChatRestricted() then
       OpenWhisperTab(name, source)
     else
       ChatFrameUtil.SendTell(name)

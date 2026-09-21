@@ -13,7 +13,7 @@ local pendingClick
 local function OnChatNameClick(_, chatFrame, link, _, button)
   pendingClick = nil
   if button ~= "LeftButton" then return end
-  if not ns.CanAccess(link) then return end
+  if ns.ChatRestricted() then return end
 
   local name = link:match("^player:([^:]+)")
   if not name or name == "" then return end

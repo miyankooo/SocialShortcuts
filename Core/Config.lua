@@ -35,10 +35,17 @@ ns.defaults = {
   friend = isMac and "ALT" or "META",
 }
 
--- 1.60 hands player names out as secret values inside restricted content. The invite, friend and whisper
--- APIs all accept a secret name, but our own comparing and lowercasing of one throws, so every string
--- operation on a name is gated on this first.
-ns.CanAccess = canaccessvalue or function() return true end
+-- 1.60 hands player names and chat links out as secret values inside restricted content. The invite,
+-- friend and whisper APIs all accept a secret name, but our own comparing, matching and lowercasing of
+-- one throws, so every string operation on a name is gated on this first.
+-- It has to be this no-argument question. Guarding with canaccessvalue or issecretvalue cannot work from
+-- an addon: both are declared SecretArguments = "AllowedWhenUntainted", and addon execution is tainted,
+-- so handing either one a secret raises the very error it was meant to catch.
+local inChatLockdown = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
+
+function ns.ChatRestricted()
+  return inChatLockdown ~= nil and inChatLockdown() == true
+end
 
 -- Modules read this lazily, so it is safe that it stays empty until ADDON_LOADED.
 ns.db = {}
