@@ -1,23 +1,33 @@
 local _, ns = ...
 
+-- The chat history files each line under the conversation's type and target, spelled the way the server
+-- spelled the sender. A list row may spell the same player differently, so the target is compared as a
+-- name rather than looked up by its exact string. A target kept secret from restricted content is skipped.
+local function IsWhisperWith(accessID, name)
+  local chatType, chatTarget = ChatHistory_GetChatType(accessID)
+  if chatType ~= "WHISPER" or not ns.CanAccess(chatTarget) then return false end
+  return ns.SameName(chatTarget, name)
+end
+
 -- Copy the backlog into the new tab rather than letting the client migrate it, because migrating kills
--- the source frame's hyperlinks.
+-- the source frame's hyperlinks. Secret lines kept from restricted content stay behind, because addon
+-- code cannot vouch for what it hands on.
 local function CopyWhisperHistory(target, name, source)
-  local accessID = ChatHistory_GetAccessID("WHISPER", name)
   for i = 1, source:GetNumMessages() do
     local text, r, g, b, chatTypeID, messageAccessID, lineID = source:GetMessageInfo(i)
-    if messageAccessID == accessID then
+    if messageAccessID and ns.CanAccess(text) and IsWhisperWith(messageAccessID, name) then
       target:AddMessage(text, r, g, b, chatTypeID, messageAccessID, lineID)
     end
   end
 end
 
+-- A tab Blizzard opened for an incoming whisper is named in the server's spelling, so the lookup compares
+-- names. A tab opened inside restricted content keeps a secret target and is never matched.
 local function FindWhisperTab(name)
-  local target = strlower(name)
   for _, frameName in pairs(CHAT_FRAMES) do
     local frame = _G[frameName]
     if frame and frame.isTemporary and frame.inUse and frame.chatType == "WHISPER"
-      and frame.chatTarget and strlower(frame.chatTarget) == target then
+      and ns.CanAccess(frame.chatTarget) and ns.SameName(frame.chatTarget, name) then
       return frame
     end
   end
@@ -51,22 +61,37 @@ function ns.CloseWhisperBox()
   ChatFrameUtil.DeactivateChat(editBox)
 end
 
+-- Each client's own invite path: Era's menus call InviteToGroup, which offers to convert a full party to a
+-- raid (Vanilla/UIParent.lua), while Forever has no such global and its menus call C_PartyInfo.InviteUnit.
+local inviteByName = InviteToGroup or C_PartyInfo.InviteUnit
+
+-- Forever can switch character friends off, and Blizzard then hides its own add-friend entries
+-- (UnitPopupSharedButtonMixins.lua). Era has no such switch.
+local function AddCharacterFriend(name)
+  local isEnabled = C_FriendList.IsLegacyFriendSystemEnabled
+  if isEnabled and not isEnabled() then
+    ns.Print("Character friends are turned off on this client.")
+    return
+  end
+
+  C_FriendList.AddFriend(name)
+end
+
 -- Only list and chat surfaces pass openTab. Unit frames withhold it because opening a chat window from a
--- secure click taints the chat frame system. A secret name falls back the same way, since the tab lookup
--- has to compare names and a plain whisper does not.
+-- secure click taints the chat frame system.
 function ns.RunAction(action, name, openTab, source)
   if not name then return end
 
   if action == "whisper" then
-    if openTab and not ns.ChatRestricted() then
+    if openTab then
       OpenWhisperTab(name, source)
     else
       ChatFrameUtil.SendTell(name)
     end
   elseif action == "invite" then
-    C_PartyInfo.InviteUnit(name)
+    inviteByName(name)
   elseif action == "friend" then
-    C_FriendList.AddFriend(name)
+    AddCharacterFriend(name)
   end
 end
 
@@ -84,7 +109,7 @@ function ns.RunBNetAction(action, accountIndex)
       FriendsFrame_InviteOrRequestToJoin(game.playerGuid, game.gameAccountID)
     end
   elseif game and game.characterName and game.realmName == GetRealmName() then
-    C_FriendList.AddFriend(game.characterName)
+    AddCharacterFriend(game.characterName)
   else
     ns.Print("Can't add that friend, they are not on a character on this realm.")
   end

@@ -35,16 +35,29 @@ ns.defaults = {
   friend = isMac and "ALT" or "META",
 }
 
--- 1.60 hands player names and chat links out as secret values inside restricted content. The invite,
--- friend and whisper APIs all accept a secret name, but our own comparing, matching and lowercasing of
--- one throws, so every string operation on a name is gated on this first.
--- It has to be this no-argument question. Guarding with canaccessvalue or issecretvalue cannot work from
--- an addon: both are declared SecretArguments = "AllowedWhenUntainted", and addon execution is tainted,
--- so handing either one a secret raises the very error it was meant to catch.
+-- 1.60 hands player names, chat links and listing leaders out as secret values inside restricted content.
+-- Addon code can neither inspect a secret name nor pass one on: InviteUnit and AddFriend are declared
+-- SecretArguments = "AllowedWhenUntainted", so a tainted caller handing them a secret raises an error.
+-- Every action is therefore skipped while this is true. Era exposes the same function, so one gate covers
+-- both clients. The gate is this no-argument question because it answers before any name is read.
 local inChatLockdown = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
 
 function ns.ChatRestricted()
   return inChatLockdown ~= nil and inChatLockdown() == true
+end
+
+-- A few secrets outlive the lockdown: chat lines and whisper tabs kept from restricted content, and unit
+-- names under identity restrictions. issecretvalue is declared SecretArguments = "AllowedWhenUntainted" on
+-- 1.60 and carries no annotation on Era; whether the flag makes it raise for addon code is unsettled, since
+-- Blizzard's own chat filter wrapper calls canaccessvalue under captured addon taint (ChatFrameFilters.lua).
+-- pcall answers right either way, because a raise means secret, and nil never reaches the predicate.
+local isSecret = issecretvalue
+
+function ns.CanAccess(value)
+  if value == nil or not isSecret then return true end
+
+  local ok, secret = pcall(isSecret, value)
+  return ok and not secret
 end
 
 -- Modules read this lazily, so it is safe that it stays empty until ADDON_LOADED.
@@ -67,7 +80,11 @@ local function HeldModifier()
   return held
 end
 
+-- Every click surface asks this first, so gating restricted content here keeps secret names away from all
+-- of them before any of them reads a name.
 function ns.PickAction()
+  if ns.ChatRestricted() then return nil end
+
   local held = HeldModifier()
   if not held then return nil end
 
