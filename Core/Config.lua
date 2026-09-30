@@ -37,10 +37,10 @@ ns.defaults = {
   friend = isMac and "ALT" or "META",
 }
 
--- A few secrets outlive the chat lockdown: chat lines and whisper tabs kept from restricted content, and
--- unit names under identity restrictions. issecretvalue is declared SecretArguments = "AllowedWhenUntainted";
--- whether the flag makes it raise for addon code is unsettled, since Blizzard's own chat filter wrapper
--- calls canaccessvalue under captured addon taint (ChatFrameFilters.lua). pcall answers right either way,
+-- A few secrets outlive the chat lockdown: chat lines kept from restricted content, and unit names under
+-- identity restrictions. issecretvalue is declared SecretArguments = "AllowedWhenUntainted"; whether the
+-- flag makes it raise for addon code is unsettled, since Blizzard's own chat filter wrapper calls
+-- canaccessvalue under captured addon taint (ChatFrameFilters.lua). pcall answers right either way,
 -- because a raise means secret, and nil never reaches the predicate.
 function ns.CanAccess(value)
   if value == nil then return true end
@@ -52,8 +52,9 @@ end
 -- Modules read this lazily, so it is safe that it stays empty until ADDON_LOADED.
 ns.db = {}
 
+-- The chat prefix every addon of this set shares, in Blizzard's own colour object rather than a hex code.
 function ns.Print(message)
-  print("|cff58C6FASocial Shortcuts|r " .. message)
+  print(YELLOW_FONT_COLOR:WrapTextInColorCode("[Social Shortcuts]:") .. " " .. message)
 end
 
 -- Exactly one modifier has to be held. Requiring the rest to be up stops one chord from matching two

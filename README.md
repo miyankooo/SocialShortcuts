@@ -8,7 +8,7 @@ Hold a modifier, left-click any player name, and whisper, invite or add them as 
 
 | Action | What happens |
 | --- | --- |
-| Whisper | Opens a whisper. From chat and the player lists it opens a dedicated whisper tab and brings that conversation's backlog with it; from a unit frame it fills the normal whisper box |
+| Whisper | Opens the game's own whisper box, the same one its Whisper buttons open |
 | Invite to group | Invites the clicked player. A full party gets the game's own offer to convert to a raid |
 | Add friend | Adds the clicked player to your friends list |
 
@@ -25,7 +25,9 @@ Hold a modifier, left-click any player name, and whisper, invite or add them as 
 
 **Battle.net aware.** A Battle.net friend gets a real BNet whisper, an invite to whatever character they are playing, and an add-friend that works when they are on your realm.
 
-**Names the way the game writes them.** A click on a unit frame passes the name exactly as the game's own right-click menu would: `First Surname`, or `Name-Realm` for a cross-realm player where regionally unique names are off. Chat and list clicks pass the same string the game's own menus pass for that row. A whisper tab is found again however a name is spelled (`First Surname`, `First-Surname`, `Name-Realm`), so a click never opens a second tab for someone you already talk to.
+**Names the way the game writes them.** A click on a unit frame passes the name exactly as the game's own right-click menu would: `First Surname`, or `Name-Realm` for a cross-realm player where regionally unique names are off. Chat and list clicks pass the same string the game's own menus pass for that row.
+
+**Native whispers.** Every whisper goes through the game's own whisper call, the one its friends list and right-click menu use. The addon never writes to the chat windows itself.
 
 ## Installation
 
@@ -69,9 +71,11 @@ WoW Forever 1.60.x (`## Interface: 16001`). No libraries, no dependencies.
 
 ## Restrictions
 
-**Replaces the Chat Shortcuts WeakAura.** If that aura is still enabled the addon tells you at login, because both do the same job and every click would fire twice. Disable the aura and `/reload`.
+**Off inside restricted content.** In dungeons, raids, boss encounters and PvP matches the game hides player names from addons and refuses them when an addon passes them on. Every shortcut does nothing there and the default click runs as usual. Chat lines kept from such content stay hidden afterwards, so a name on them keeps the default click. A unit frame whose name or identity the game keeps hidden keeps the default click too.
 
-**Off inside restricted content.** In dungeons, raids, boss encounters and PvP matches the game hides player names from addons and refuses them when an addon passes them on. Every shortcut does nothing there and the default click runs as usual. Chat lines and whisper tabs kept from such content stay hidden afterwards, so a whisper tab never copies those lines. A unit frame whose name or identity the game keeps hidden keeps the default click too.
+**In chat, the game's own click still runs.** The game opens a whisper on every left-click of a chat name, modifier or not, so Invite to group and Add friend from chat also leave that whisper box open. Press Escape to close it.
+
+**Shift keeps its game meaning.** Shift-click on a chat name inserts the name into the text you're typing, or runs a /who. If you bind an action to Shift, that still happens and the action fires as well. A Shift whisper then replaces the typed text, just like the game's own Whisper button.
 
 **Main chat windows only.** Names in the Communities chat window open their link without the event the addon listens for, so they keep the default click.
 

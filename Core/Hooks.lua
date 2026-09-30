@@ -16,7 +16,7 @@ end
 local pendingClick
 
 -- The chat frame triggers this callback before it calls SetItemRef, so the intent is only recorded here
--- and acted on once the default link handling has run and opened its whisper box.
+-- and acted on once the default link handling has run.
 local function OnChatNameClick(_, chatFrame, link, _, button)
   pendingClick = nil
   if button ~= "LeftButton" then return end
@@ -25,6 +25,10 @@ local function OnChatNameClick(_, chatFrame, link, _, button)
   -- that cannot be pattern matched, and PickAction refuses there.
   local action = ns.PickAction()
   if not action then return end
+
+  -- Blizzard's own link handler whispers on every left click that is not CHATLINK-modified (Shift by
+  -- default, ItemRefHandlers.lua), so that whisper is left to it and the addon adds no second one.
+  if action == "whisper" and not IsModifiedClick("CHATLINK") then return end
 
   -- A line kept from restricted content stays secret after the lockdown ends, so its link is checked too.
   if not ns.CanAccess(link) then return end
@@ -42,11 +46,10 @@ local function OnItemRef()
   pendingClick = nil
   if not click or click.frameTime ~= GetTime() then return end
 
-  -- A CHATLINK-modified click (Shift by default) makes the default handler insert the name or run a /who
-  -- instead of staging a whisper (ItemRefHandlers.lua), so the active box then holds the player's own
-  -- typing and must not be wiped.
-  if not IsModifiedClick("CHATLINK") then ns.CloseWhisperBox() end
-  ns.RunAction(click.action, click.name, true, click.source)
+  -- A CHATLINK click makes the default handler insert the name into the open box or run a /who instead
+  -- of whispering. A whisper opened before that would get the name typed into it, so it waits until now.
+  -- After any other click the whisper box Blizzard opened stays open, since closing it writes chat state.
+  ns.RunAction(click.action, click.name, click.source)
 end
 
 -- Unit frames ------------------------------------------------------------------------------------
@@ -128,7 +131,7 @@ local function OnFriendsListClick(frame, button)
 
   if frame.buttonType == FRIENDS_BUTTON_TYPE_WOW then
     local info = C_FriendList.GetFriendInfoByIndex(frame.id)
-    if info and info.name then ns.RunAction(action, info.name, true) end
+    if info and info.name then ns.RunAction(action, info.name) end
   elseif frame.buttonType == FRIENDS_BUTTON_TYPE_BNET then
     ns.RunBNetAction(action, frame.id)
   end
@@ -143,7 +146,7 @@ local function OnWhoListMouseUp(frame, button, upInside)
   if not action then return end
 
   local info = C_FriendList.GetWhoInfo(frame.index)
-  if info and info.fullName then ns.RunAction(action, info.fullName, true) end
+  if info and info.fullName then ns.RunAction(action, info.fullName) end
 end
 
 local function OnBrowseEntryClick(frame, button)
@@ -153,7 +156,7 @@ local function OnBrowseEntryClick(frame, button)
   if not action then return end
 
   local info = C_LFGList.GetSearchResultInfo(frame.resultID)
-  if info and info.leaderName then ns.RunAction(action, info.leaderName, true) end
+  if info and info.leaderName then ns.RunAction(action, info.leaderName) end
 end
 
 -- A Battle.net community lists accounts, whose names may be Kstrings that Blizzard only ever hands to
@@ -171,19 +174,10 @@ local function OnGuildMemberClick(memberList, entry, button)
   if not action or IsBattleNetClub(memberList) then return end
 
   local info = entry:GetMemberInfo()
-  if info and info.name then ns.RunAction(action, info.name, true) end
+  if info and info.name then ns.RunAction(action, info.name) end
 end
 
 -- Install ----------------------------------------------------------------------------------------
-
--- The predecessor WeakAura installs the same hooks under this frame name and its own hooks cannot be
--- taken back out, so say so rather than let every click quietly fire twice. The aura only builds that
--- frame once WeakAuras runs it, so this waits for login.
-local function WarnDuplicateAura()
-  if SuperSocialWAHost then
-    ns.Print("the Chat Shortcuts WeakAura is still active and does the same job. Disable it and /reload, or every click fires twice.")
-  end
-end
 
 -- Hooks go in at file load rather than login, so no frame the client sets up in between is missed.
 EventRegistry:RegisterCallback("ChatFrame.OnHyperlinkClick", OnChatNameClick, ns.addonName)
@@ -208,5 +202,3 @@ end)
 EventUtil.ContinueOnAddOnLoaded("Blizzard_Communities", function()
   hooksecurefunc(CommunitiesFrame.MemberList, "OnClubMemberButtonClicked", OnGuildMemberClick)
 end)
-
-EventUtil.ContinueOnPlayerLogin(WarnDuplicateAura)

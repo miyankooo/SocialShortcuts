@@ -1,6 +1,6 @@
 # SocialShortcuts — Memory
 
-Updated 2026-09-30 after the Forever-only rework (2.0.0). The owner's decision is WoW Forever 1.60.x only: `main` holds the Forever version and `1.15.x-backup` keeps the only commit with Era code. Verified against Gethe `forever` @ `966519cf` (1.60.1.70124), only files the Forever client loads, and Ketho `forever` @ `4149af64` (1.60.1.70009). The installed client is 1.60.1.70009. Nothing has run in a client.
+Updated 2026-09-30 after the Forever-only rework (2.0.0) and the owner's round-2 decisions (native whispers, no WeakAura notice, colour objects). The owner's decision is WoW Forever 1.60.x only: `main` holds the Forever version and `1.15.x-backup` keeps the only commit with Era code. Verified against Gethe `forever` @ `966519cf` (1.60.1.70124), only files the Forever client loads, and Ketho `forever` @ `4149af64` (1.60.1.70009). The installed client is 1.60.1.70009. Nothing has run in a client.
 
 ## Current state
 
@@ -8,11 +8,11 @@ Modifier-click a player name to whisper, invite or add as a friend. It works on 
 
 | Item | State |
 |---|---|
-| Version | 2.0.0, `## Interface: 16001`, `## Category: Social` |
+| Version | 2.0.0, `## Interface: 16001`, `## Category: Social`. Round 2 kept the version, because 2.0.0 has not shipped |
 | Author | `miyanko` |
-| Git | `main` has the 2.0.0 commit on top of `694c59c`, committed locally, not pushed. `1.15.x-backup` = `origin/1.15.x-backup` = `694c59c`. No `LICENSE`: removed on purpose on 2026-09-25, from every branch and all history; one gets added later by hand |
+| Git | `main` has the 2.0.0 commit and the round-2 commit on top of `694c59c`, committed locally, not pushed. `1.15.x-backup` = `origin/1.15.x-backup` = `694c59c`. No `LICENSE`: removed on purpose on 2026-09-25, from every branch and all history; one gets added later by hand |
 | Layout | `Core/` (Config, Names, Actions, Hooks), `UI/Options.lua` (Settings panel and slash command). No libraries |
-| Lua | 540 lines (589 before the rework) |
+| Lua | 446 lines (540 after 2.0.0, 589 before the rework) |
 
 History:
 
@@ -32,16 +32,26 @@ Click surfaces on Forever, verified in the loaded source:
 | Group Finder | Browse rows, which register both buttons (`Blizzard_LFGVanilla_Browse.xml:487`), via `LFGBrowseSearchEntry_OnClick` |
 | Invite | `C_PartyInfo.InviteUnit`, which asks for confirmation when the party would convert to a raid (`PartyInfoDocumentation.lua:361`) |
 
-Hook timing: every hook installs at file load. Scroll lists hook the rows they already hold (`ForEachFrame`) and then each initialised row. Only the WeakAura notice (SSC-9) waits for `PLAYER_LOGIN`, because the aura builds its host frame when WeakAuras runs it. Settings load through `EventUtil.ContinueOnAddOnLoaded`.
+Hook timing: every hook installs at file load. Scroll lists hook the rows they already hold (`ForEachFrame`) and then each initialised row. Saved settings load through `EventUtil.ContinueOnAddOnLoaded`, and the Settings panel registers at `PLAYER_LOGIN`.
+
+Whispers (SSC-3, owner decision: the most native, leanest path):
+
+- Every whisper is Blizzard's own entry point. Characters use `ChatFrameUtil.SendTell(name, chatFrame)` (`Blizzard_ChatFrameBase/Shared/ChatFrameUtil.lua:383`). Battle.net friends use `ChatFrameUtil.SendBNetTell(accountName)` (`:388`). These are the calls Blizzard's own buttons make: `FriendsFrameSendMessageButton_OnClick` (`Camelot/FriendsFrame.lua:1171-1180`), `UnitPopupWhisperButtonMixin:OnClick` (`UnitPopupSharedButtonMixins.lua:449-452`), the Group Finder leader whisper (`Blizzard_LFGVanilla_Browse.lua:966`). `Mainline/ChatFrameUtilOverrides.lua` doesn't override either.
+- The addon writes no chat state itself: no temporary window, no backlog copy, no edit-box fields, no `ACTIVE_CHAT_EDIT_BOX`.
+- Chat name, whisper on a modifier that isn't CHATLINK: the addon does nothing. Blizzard's `HandlePlayerLink` already calls `SendTell(name, contextData.frame)` on every left click that isn't CHATLINK (`Mainline/ItemRefHandlers.lua:44`).
+- Chat name, whisper on the CHATLINK modifier (Shift by default): the default handler inserts the name into the open box or sends a /who (`ItemRefHandlers.lua:10-39`). The addon then calls `SendTell(name, chatFrame)` from the `SetItemRef` post-hook, after the default handler, so the name isn't typed into the new whisper. `SendTell` replaces the box text, like Blizzard's own Whisper button.
+- Chat name, invite or add friend: Blizzard's default click has already opened a whisper box for that name, and it stays open. The 2.0.0 `CloseWhisperBox` closed it by writing `editBox.text`/`setText` and calling `DeactivateChat`, which clears `ACTIVE_CHAT_EDIT_BOX`. It is gone. Whether to close the box is an open owner question.
+- Remaining taint surface: `SendTell` and `SendBNetTell` run Blizzard code under the addon's taint. That code writes `ACTIVE_CHAT_EDIT_BOX`, `LAST_ACTIVE_CHAT_EDIT_BOX` and edit-box state (`ChatFrameUtil.ActivateChat`, `ChatFrameUtil.lua:516-527`). Every addon that opens a whisper has the same exposure, and 2.0.0 already had it on unit frames. The in-game `taintLog` check stays.
+
+Chat output: `ns.Print` prefixes every line with `YELLOW_FONT_COLOR:WrapTextInColorCode("[Social Shortcuts]:") .. " "` (`ColorMixin:WrapTextInColorCode`, `Blizzard_SharedXMLBase/Color.lua:68`). No literal `|cff` codes are left.
 
 How names and restrictions are handled:
 
 - Unit-frame actions pass Blizzard's own unit-menu name form: "First Surname", or "Name-Realm" when `RegionalUniqueNamesEnabled()` is false (`Mainline/UnitPopupUtils.lua:124-131`).
-- `Core/Names.lua` matches names with space and hyphen treated as the same separator.
 - Every action is skipped while `C_ChatInfo.InChatMessagingLockdown()` is true.
 - Unit frames also check `C_Secrets.CanCompareUnitTokens(unit, "player")` and `C_Secrets.ShouldUnitComparisonBeSecret(unit, "player")` before `UnitIsUnit` (`RequiresComparableUnitTokens`, `SecretWhenUnitComparisonRestricted`), and `C_Secrets.ShouldUnitIdentityBeSecret(unit)` before `UnitNameUnmodified` (`SecretWhenUnitIdentityRestricted`).
 - `ns.CanAccess` wraps `issecretvalue` in `pcall`.
-- A Shift (CHATLINK) click doesn't wipe typed text.
+- A CHATLINK click (Shift by default) for invite or add friend leaves the typed text alone. The default handler still inserts the name, as it always does.
 - Saved modifier tokens not in `ns.modifierOrder` (or a non-table `SocialShortcutsDB`) fall back to the defaults at load.
 
 ## Audit 2026-09-30: status after 2.0.0
@@ -50,13 +60,13 @@ How names and restrictions are handled:
 |---|---|---|---|
 | SSC-1 | High | Done, needs in-game check | Who rows: `OnMouseUp` hooked once per row, `LeftButton` and `upInside` required. `rehookEveryInit` is gone |
 | SSC-2 | High | Done, needs in-game check | `HookUnitFrame` returns on `frame:IsForbidden()` or `frame.disableMouse`. Whether the old hook errored stays UNVERIFIED |
-| SSC-3 | High | Open, owner decision | Unchanged: the dedicated whisper tab and backlog copy stay for chat and list clicks. Only the `GeneralDockManager` existence probe was dropped |
+| SSC-3 | High | Done (owner round 2), needs in-game check | Whisper tab, backlog copy and `CloseWhisperBox` removed, along with `FindWhisperTab`, `CopyWhisperHistory`, `OpenWhisperTab`, `IsWhisperWith`, `NameKey` and `SameName`. Every whisper is `SendTell` or `SendBNetTell` (see Whispers) |
 | SSC-4 | Medium | Done | `## Interface: 16001` |
 | SSC-5 | Medium | Done | Deleted `HookNumberedRows`, `OnGuildRowClick`, `HookEraLists`, the `FriendsFrameFriendsScrollFrame` probe, `WHOS_TO_DISPLAY`, `GUILDMEMBERS_TO_DISPLAY` and `whoIndex` |
 | SSC-6 | Medium | Done | `C_PartyInfo.InviteUnit(name)` directly |
 | SSC-7 | Medium | Done | Probes removed: `IsMacClient`, `C_ChatInfo`, `issecretvalue`, `UnitNameUnmodified or UnitName`, `Constants … or " "`, `GeneralDockManager`, `IsLegacyFriendSystemEnabled`, `TargetFrame`/`FocusFrame`/`PartyFrame`, `GetSelectedClubInfo`, `GetMemberInfo`, the `memberList` nil check. Kept `frame.GetUnit`: only `PartyMemberFrameMixin` defines it (`Mainline/PartyMemberFrame.lua:4`), so it picks the frame type, not the client |
 | SSC-8 | Medium | Done, needs in-game check | `C_Secrets` guards as listed above. Whether their scope differs from the chat lockdown stays UNVERIFIED |
-| SSC-9 | Low | Open, owner decision | Unchanged: the `SuperSocialWAHost` notice at login |
+| SSC-9 | Low | Done (owner round 2) | `WarnDuplicateAura`, its `PLAYER_LOGIN` wait and the README paragraph removed |
 | SSC-10 | Low | Done | Era and "both clients" comments rewritten |
 | SSC-11 | Low | Done | `## Category: Social` |
 | SSC-12 | Low | Done | README is Forever-only |
@@ -65,6 +75,7 @@ How names and restrictions are handled:
 | SSC-15 | Low | Done | Unknown tokens reset to the default |
 | SSC-16 | Low | Open, owner decision | No Addon Compartment entry added |
 | SSC-17 | Medium | Done by the lead | `1.15.x-backup` at `694c59c`, local and on GitHub |
+| Colours | Low | Done (owner round 2) | Chat prefix from `YELLOW_FONT_COLOR`, as listed above |
 
 UNVERIFIED assumptions in 2.0.0 (engine behaviour the source can't show):
 
@@ -90,26 +101,26 @@ Nothing to do:
 1. When chat lockdown is active on Forever is unknown. The shortcuts are off wherever it applies.
 2. That the server accepts "First Surname" for invite and add-friend on Forever is inferred from Blizzard's own invite button, not proven.
 3. Names in the Communities chat window keep the default click.
-4. The whisper-tab design's taint exposure (SSC-3) is unproven either way.
+4. `SendTell` runs under the addon's taint (see Whispers). Whether that ever blocks a protected chat action later is unproven.
 
 ## Next steps
 
-1. Owner decisions: SSC-3 (whisper tab vs `SendTell`), SSC-9 (keep the WeakAura notice), SSC-16 (Addon Compartment entry).
+1. Owner decisions: SSC-16 (Addon Compartment entry), and whether a chat invite or add friend should close the whisper box Blizzard's own click opens. Closing it means a chat-state write again, for example `ChatFrameEditBoxMixin:ClearChat` (`ChatFrameEditBox.lua:548`) or `ChatFrameUtil.DeactivateChat`.
 2. Push `main` after review.
 3. In game, run `/console scriptErrors 1` and `/console taintLog 1` first, then the checks below.
 
-Offline check: `lua ssc_smoke.lua <addon dir>` in the audit scratchpad stubs the Forever globals, loads the toc files and exercises the fixes (28/28 on 2026-09-30). It is not part of the repo.
+Offline check: `lua ssc_smoke.lua <addon dir>` in the audit scratchpad stubs the Forever globals, loads the toc files and exercises the fixes. Any other global read raises, so a leftover chat global or `SuperSocialWAHost` fails it. It passed 28/28 after 2.0.0 and 39/39 after round 2. It is not part of the repo.
 
 Forever checks:
 
 - [ ] `/ssc` opens settings with three modifier dropdowns. Picking a taken modifier swaps them.
-- [ ] Each action from a chat name: the whisper opens and a second click reuses it.
+- [ ] Each action from a chat name. Whisper opens Blizzard's whisper box once, with no duplicate header or text. Invite and add friend land, and Blizzard's whisper box is open, which is expected.
 - [ ] Target, party and raid frames, the friends list (WoW and Battle.net), the guild roster, and a Group Finder leader.
 - [ ] After `/who`, a modifier-left-click on a who row fires its action once; an unmodified click and a right click (menu) behave as before (SSC-1).
 - [ ] After a `/reload` in a raid, raid frames take a modifier-click at once (SSC-13).
-- [ ] With Shift bound, typed text survives a click.
+- [ ] With Shift bound to invite or add friend, typed text survives a chat click. With Shift bound to whisper, a Shift-click on a chat name opens the whisper with no name typed into it.
 - [ ] Invite and add friend from a unit frame land with "First Surname". This settles issue 2.
 - [ ] The friends list with a pending invite throws no error. A Battle.net community member keeps the default click.
 - [ ] Check `/dump C_ChatInfo.InChatMessagingLockdown(), C_Secrets.ShouldUnitIdentityBeSecret("target"), C_Secrets.CanCompareUnitTokens("target", "player")` in a dungeon. There, modifier-clicks do nothing and throw no error. After leaving, clicking a name on a line posted inside does nothing and throws no error (SSC-8).
 - [ ] In a dungeon with enemy nameplates shown: no Lua error from the unit-frame hook (SSC-2).
-- [ ] After a few whisper actions, `taintLog` shows no SocialShortcuts taint on chat frames (SSC-3).
+- [ ] Whisper from a unit frame, a WoW and a Battle.net friend, a who row, a Group Finder leader and a Shift-bound chat name. Then send the whispers, reply with R, and open chat with Enter. `taintLog` blames SocialShortcuts for no blocked action (SSC-3).
