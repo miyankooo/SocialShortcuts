@@ -73,7 +73,7 @@ How names and restrictions are handled:
 | SSC-13 | Low | Done | Hooks at file load; lists hook existing rows through `ForEachFrame` (its callback gets `(frame, elementData)`, unlike the registered one, so the addon calls it itself instead of passing `iterateExisting`) |
 | SSC-14 | Low | Done | `ns.ChatRestricted` inlined into `ns.PickAction`, `NameKey` local, ADDON_LOADED frame replaced by `EventUtil.ContinueOnAddOnLoaded` |
 | SSC-15 | Low | Done | Unknown tokens reset to the default |
-| SSC-16 | Low | Open, owner decision | No Addon Compartment entry added |
+| SSC-16 | Low | Done (owner decision) | Addon Compartment entry opens the settings (`SocialShortcuts_CompartmentClick`/`Enter`/`Leave` in `UI/Options.lua`, named in the toc) |
 | SSC-17 | Medium | Done by the lead | `1.15.x-backup` at `694c59c`, local and on GitHub |
 | Colours | Low | Done (owner round 2) | Chat prefix from `YELLOW_FONT_COLOR`, as listed above |
 
@@ -105,7 +105,7 @@ Nothing to do:
 
 ## Next steps
 
-1. Owner decision still open: SSC-16 (Addon Compartment entry). Decided: the whisper box Blizzard opens on a chat-name click stays open after an invite or add friend.
+1. No owner decisions open. Decided: the Addon Compartment entry (SSC-16) is added, and the whisper box Blizzard opens on a chat-name click stays open after an invite or add friend.
 2. Push `main` after review.
 3. In game, run `/console scriptErrors 1` and `/console taintLog 1` first, then the checks below.
 

@@ -6,6 +6,9 @@
 ## Category: Social
 ## IconTexture: Interface\Icons\UI_Chat
 ## SavedVariables: SocialShortcutsDB
+## AddonCompartmentFunc: SocialShortcuts_CompartmentClick
+## AddonCompartmentFuncOnEnter: SocialShortcuts_CompartmentEnter
+## AddonCompartmentFuncOnLeave: SocialShortcuts_CompartmentLeave
 
 # Load order is the dependency order: Config exports the binding lookup and the secret guard, Names a
 # unit's name in Blizzard's own menu form, Actions the three things a binding can do, and Hooks wires the

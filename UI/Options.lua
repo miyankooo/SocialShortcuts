@@ -61,9 +61,27 @@ end
 
 EventUtil.ContinueOnPlayerLogin(RegisterPanel)
 
-SLASH_SOCIALSHORTCUTS1, SLASH_SOCIALSHORTCUTS2 = "/socialshortcuts", "/ssc"
-function SlashCmdList.SOCIALSHORTCUTS()
+local function OpenSettings()
   if categoryID then
     Settings.OpenToCategory(categoryID)
   end
+end
+
+SLASH_SOCIALSHORTCUTS1, SLASH_SOCIALSHORTCUTS2 = "/socialshortcuts", "/ssc"
+SlashCmdList.SOCIALSHORTCUTS = OpenSettings
+
+-- Addon Compartment entry points named in the toc. Blizzard calls them with the addon name first, then the menu row.
+function SocialShortcuts_CompartmentClick()
+  OpenSettings()
+end
+
+function SocialShortcuts_CompartmentEnter(_, menuButton)
+  GameTooltip:SetOwner(menuButton, "ANCHOR_LEFT")
+  GameTooltip_SetTitle(GameTooltip, "Social Shortcuts")
+  GameTooltip_AddInstructionLine(GameTooltip, "Click to open the settings.")
+  GameTooltip:Show()
+end
+
+function SocialShortcuts_CompartmentLeave()
+  GameTooltip:Hide()
 end

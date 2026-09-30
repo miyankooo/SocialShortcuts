@@ -39,7 +39,7 @@ World of Warcraft/_classic_beta_/Interface/AddOns/
 
 ## Settings
 
-Open **Options → AddOns → Social Shortcuts**, or type `/socialshortcuts` (short form `/ssc`).
+Open **Options → AddOns → Social Shortcuts**, pick **Social Shortcuts** in the addon menu at the minimap, or type `/socialshortcuts` (short form `/ssc`).
 
 Each action has a dropdown listing every modifier the game can detect, plus *Unbound*. The names depend on your platform:
 
