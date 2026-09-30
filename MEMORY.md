@@ -40,7 +40,7 @@ Whispers (SSC-3, owner decision: the most native, leanest path):
 - The addon writes no chat state itself: no temporary window, no backlog copy, no edit-box fields, no `ACTIVE_CHAT_EDIT_BOX`.
 - Chat name, whisper on a modifier that isn't CHATLINK: the addon does nothing. Blizzard's `HandlePlayerLink` already calls `SendTell(name, contextData.frame)` on every left click that isn't CHATLINK (`Mainline/ItemRefHandlers.lua:44`).
 - Chat name, whisper on the CHATLINK modifier (Shift by default): the default handler inserts the name into the open box or sends a /who (`ItemRefHandlers.lua:10-39`). The addon then calls `SendTell(name, chatFrame)` from the `SetItemRef` post-hook, after the default handler, so the name isn't typed into the new whisper. `SendTell` replaces the box text, like Blizzard's own Whisper button.
-- Chat name, invite or add friend: Blizzard's default click has already opened a whisper box for that name, and it stays open. The 2.0.0 `CloseWhisperBox` closed it by writing `editBox.text`/`setText` and calling `DeactivateChat`, which clears `ACTIVE_CHAT_EDIT_BOX`. It is gone. Whether to close the box is an open owner question.
+- Chat name, invite or add friend: Blizzard's default click has already opened a whisper box for that name, and it stays open. The 2.0.0 `CloseWhisperBox` closed it by writing `editBox.text`/`setText` and calling `DeactivateChat`, which clears `ACTIVE_CHAT_EDIT_BOX`. It is gone. Owner decision (2026-09-30): leave Blizzard's whisper box open after an invite or add friend from chat, so the addon never writes chat state.
 - Remaining taint surface: `SendTell` and `SendBNetTell` run Blizzard code under the addon's taint. That code writes `ACTIVE_CHAT_EDIT_BOX`, `LAST_ACTIVE_CHAT_EDIT_BOX` and edit-box state (`ChatFrameUtil.ActivateChat`, `ChatFrameUtil.lua:516-527`). Every addon that opens a whisper has the same exposure, and 2.0.0 already had it on unit frames. The in-game `taintLog` check stays.
 
 Chat output: `ns.Print` prefixes every line with `YELLOW_FONT_COLOR:WrapTextInColorCode("[Social Shortcuts]:") .. " "` (`ColorMixin:WrapTextInColorCode`, `Blizzard_SharedXMLBase/Color.lua:68`). No literal `|cff` codes are left.
@@ -105,7 +105,7 @@ Nothing to do:
 
 ## Next steps
 
-1. Owner decisions: SSC-16 (Addon Compartment entry), and whether a chat invite or add friend should close the whisper box Blizzard's own click opens. Closing it means a chat-state write again, for example `ChatFrameEditBoxMixin:ClearChat` (`ChatFrameEditBox.lua:548`) or `ChatFrameUtil.DeactivateChat`.
+1. Owner decision still open: SSC-16 (Addon Compartment entry). Decided: the whisper box Blizzard opens on a chat-name click stays open after an invite or add friend.
 2. Push `main` after review.
 3. In game, run `/console scriptErrors 1` and `/console taintLog 1` first, then the checks below.
 
