@@ -1,13 +1,13 @@
-## Interface: 11509, 16001
+## Interface: 16001
 ## Title: Social Shortcuts
-## Notes: Modifier-click a player name anywhere to whisper, invite or add friend.
+## Notes: Modifier-click a player name anywhere to whisper, invite or add them as a friend.
 ## Author: miyanko
-## Version: 1.0.0
+## Version: 2.0.0
+## Category: Social
 ## IconTexture: Interface\Icons\UI_Chat
 ## SavedVariables: SocialShortcutsDB
-## X-Category: Chat & Communication
 
-# Load order is the dependency order: Config exports the binding lookup and the secret guards, Names the
+# Load order is the dependency order: Config exports the binding lookup and the secret guard, Names the
 # one rule for comparing player names, Actions the three things a binding can do, and Hooks wires the click
 # surfaces to all of them. UI only reads what Config already set up.
 

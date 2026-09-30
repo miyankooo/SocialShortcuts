@@ -12,7 +12,7 @@ local modifierTests = {
   META = IsMetaKeyDown,
 }
 
-local isMac = IsMacClient and IsMacClient() or false
+local isMac = IsMacClient()
 
 local macLabels = { NONE = "Unbound", SHIFT = "Shift", CTRL = "Control", ALT = "Option", META = "Command" }
 local pcLabels = { NONE = "Unbound", SHIFT = "Shift", CTRL = "Ctrl", ALT = "Alt", META = "Windows" }
@@ -20,6 +20,8 @@ local pcLabels = { NONE = "Unbound", SHIFT = "Shift", CTRL = "Ctrl", ALT = "Alt"
 -- Fixed order so the dropdowns read the same every session, with the opt-out first.
 ns.modifierOrder = { "NONE", "SHIFT", "CTRL", "ALT", "META" }
 ns.modifierLabel = isMac and macLabels or pcLabels
+
+local knownTokens = tInvert(ns.modifierOrder)
 
 ns.actions = {
   { key = "whisper", label = "Whisper", help = "Open a whisper to the clicked player." },
@@ -35,28 +37,15 @@ ns.defaults = {
   friend = isMac and "ALT" or "META",
 }
 
--- 1.60 hands player names, chat links and listing leaders out as secret values inside restricted content.
--- Addon code can neither inspect a secret name nor pass one on: InviteUnit and AddFriend are declared
--- SecretArguments = "AllowedWhenUntainted", so a tainted caller handing them a secret raises an error.
--- Every action is therefore skipped while this is true. Era exposes the same function, so one gate covers
--- both clients. The gate is this no-argument question because it answers before any name is read.
-local inChatLockdown = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
-
-function ns.ChatRestricted()
-  return inChatLockdown ~= nil and inChatLockdown() == true
-end
-
--- A few secrets outlive the lockdown: chat lines and whisper tabs kept from restricted content, and unit
--- names under identity restrictions. issecretvalue is declared SecretArguments = "AllowedWhenUntainted" on
--- 1.60 and carries no annotation on Era; whether the flag makes it raise for addon code is unsettled, since
--- Blizzard's own chat filter wrapper calls canaccessvalue under captured addon taint (ChatFrameFilters.lua).
--- pcall answers right either way, because a raise means secret, and nil never reaches the predicate.
-local isSecret = issecretvalue
-
+-- A few secrets outlive the chat lockdown: chat lines and whisper tabs kept from restricted content, and
+-- unit names under identity restrictions. issecretvalue is declared SecretArguments = "AllowedWhenUntainted";
+-- whether the flag makes it raise for addon code is unsettled, since Blizzard's own chat filter wrapper
+-- calls canaccessvalue under captured addon taint (ChatFrameFilters.lua). pcall answers right either way,
+-- because a raise means secret, and nil never reaches the predicate.
 function ns.CanAccess(value)
-  if value == nil or not isSecret then return true end
+  if value == nil then return true end
 
-  local ok, secret = pcall(isSecret, value)
+  local ok, secret = pcall(issecretvalue, value)
   return ok and not secret
 end
 
@@ -80,10 +69,13 @@ local function HeldModifier()
   return held
 end
 
--- Every click surface asks this first, so gating restricted content here keeps secret names away from all
--- of them before any of them reads a name.
+-- Inside restricted content the client hands player names, chat links and listing leaders out as secret
+-- values. Addon code can neither inspect a secret name nor pass one on: InviteUnit and AddFriend are
+-- declared SecretArguments = "AllowedWhenUntainted", so a tainted caller handing them a secret raises.
+-- Every click surface asks this first, and the lockdown question takes no argument, so it answers before
+-- any surface reads a name.
 function ns.PickAction()
-  if ns.ChatRestricted() then return nil end
+  if C_ChatInfo.InChatMessagingLockdown() then return nil end
 
   local held = HeldModifier()
   if not held then return nil end
@@ -93,21 +85,17 @@ function ns.PickAction()
   end
 end
 
+-- A token the dropdowns do not offer would bind nothing and leave its dropdown blank, so an unknown or
+-- missing value falls back to the default.
 local function LoadSettings()
-  SocialShortcutsDB = SocialShortcutsDB or {}
+  if type(SocialShortcutsDB) ~= "table" then SocialShortcutsDB = {} end
+
   for key, value in pairs(ns.defaults) do
-    if SocialShortcutsDB[key] == nil then
+    if not knownTokens[SocialShortcutsDB[key]] then
       SocialShortcutsDB[key] = value
     end
   end
   ns.db = SocialShortcutsDB
 end
 
-local configFrame = CreateFrame("Frame")
-configFrame:RegisterEvent("ADDON_LOADED")
-configFrame:SetScript("OnEvent", function(self, _, loadedAddon)
-  if loadedAddon == addonName then
-    LoadSettings()
-    self:UnregisterEvent("ADDON_LOADED")
-  end
-end)
+EventUtil.ContinueOnAddOnLoaded(addonName, LoadSettings)

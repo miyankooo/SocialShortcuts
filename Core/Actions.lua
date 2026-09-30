@@ -33,16 +33,13 @@ local function FindWhisperTab(name)
   end
 end
 
-local function PrimaryChatFrame()
-  return (GeneralDockManager and GeneralDockManager.primary) or DEFAULT_CHAT_FRAME
-end
-
+-- A click with no source frame (the player lists) takes its backlog from the main chat window.
 local function OpenWhisperTab(name, source)
   local frame = FindWhisperTab(name)
   if not frame then
     frame = FCF_OpenTemporaryWindow("WHISPER", name, nil, true)
     if not frame then return end
-    CopyWhisperHistory(frame, name, source or PrimaryChatFrame())
+    CopyWhisperHistory(frame, name, source or GeneralDockManager.primary or DEFAULT_CHAT_FRAME)
   end
 
   if frame.isDocked then FCF_SelectDockFrame(frame) end
@@ -61,15 +58,10 @@ function ns.CloseWhisperBox()
   ChatFrameUtil.DeactivateChat(editBox)
 end
 
--- Each client's own invite path: Era's menus call InviteToGroup, which offers to convert a full party to a
--- raid (Vanilla/UIParent.lua), while Forever has no such global and its menus call C_PartyInfo.InviteUnit.
-local inviteByName = InviteToGroup or C_PartyInfo.InviteUnit
-
--- Forever can switch character friends off, and Blizzard then hides its own add-friend entries
--- (UnitPopupSharedButtonMixins.lua). Era has no such switch.
+-- Character friends can be switched off, and Blizzard then hides its own add-friend entries
+-- (UnitPopupSharedButtonMixins.lua).
 local function AddCharacterFriend(name)
-  local isEnabled = C_FriendList.IsLegacyFriendSystemEnabled
-  if isEnabled and not isEnabled() then
+  if not C_FriendList.IsLegacyFriendSystemEnabled() then
     ns.Print("Character friends are turned off on this client.")
     return
   end
@@ -78,7 +70,8 @@ local function AddCharacterFriend(name)
 end
 
 -- Only list and chat surfaces pass openTab. Unit frames withhold it because opening a chat window from a
--- secure click taints the chat frame system.
+-- secure click taints the chat frame system. Invites go through the same call Blizzard's own menus make,
+-- which also offers to convert a full party to a raid.
 function ns.RunAction(action, name, openTab, source)
   if not name then return end
 
@@ -89,7 +82,7 @@ function ns.RunAction(action, name, openTab, source)
       ChatFrameUtil.SendTell(name)
     end
   elseif action == "invite" then
-    inviteByName(name)
+    C_PartyInfo.InviteUnit(name)
   elseif action == "friend" then
     AddCharacterFriend(name)
   end
