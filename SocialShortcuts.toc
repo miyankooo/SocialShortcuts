@@ -1,9 +1,9 @@
 ## Interface: 16001
 ## Title: Social Shortcuts
-## Notes: Modifier-click a player name anywhere to whisper, invite or add them as a friend.
+## Notes: Whispers, invites or befriends a player when you modifier-click their name.
 ## Author: miyanko
-## Version: 2.0.0
-## Category: Social
+## Version: 1.0.0
+## Category: Chat
 ## IconTexture: Interface\Icons\UI_Chat
 ## SavedVariables: SocialShortcutsDB
 ## AddonCompartmentFunc: SocialShortcuts_CompartmentClick

@@ -28,7 +28,7 @@ function ns.RunAction(action, name, chatFrame)
 end
 
 -- Battle.net friends need the account APIs, because a name-based action cannot reach an account that is
--- not on a character of this realm right now.
+-- not on a character of this realm right now. Add Friend does nothing here: they are already a friend.
 function ns.RunBNetAction(action, accountIndex)
   local info = C_BattleNet.GetFriendAccountInfo(accountIndex)
   if not info then return end
@@ -36,13 +36,7 @@ function ns.RunBNetAction(action, accountIndex)
   local game = info.gameAccountInfo
   if action == "whisper" then
     ChatFrameUtil.SendBNetTell(info.accountName)
-  elseif action == "invite" then
-    if game and game.playerGuid and game.gameAccountID then
-      FriendsFrame_InviteOrRequestToJoin(game.playerGuid, game.gameAccountID)
-    end
-  elseif game and game.characterName and game.realmName == GetRealmName() then
-    AddCharacterFriend(game.characterName)
-  else
-    ns.Print("Can't add that friend, they are not on a character on this realm.")
+  elseif action == "invite" and game and game.playerGuid and game.gameAccountID then
+    FriendsFrame_InviteOrRequestToJoin(game.playerGuid, game.gameAccountID)
   end
 end

@@ -13,12 +13,12 @@ end
 
 -- Chat name links --------------------------------------------------------------------------------
 
-local pendingClick
-
--- The chat frame triggers this callback before it calls SetItemRef, so the intent is only recorded here
--- and acted on once the default link handling has run.
-local function OnChatNameClick(_, chatFrame, link, _, button)
-  pendingClick = nil
+-- Main chat windows, the Communities chat and any other text that shows a player link all call SetItemRef
+-- with the click (ChatFrame.lua, CommunitiesChatFrame.xml). The post-hook runs after the default handler,
+-- so a CHATLINK click has already inserted the name or run a /who, and a whisper opened here does not get
+-- the name typed into it. After any other click the whisper box Blizzard opened stays open, since closing
+-- it writes chat state.
+local function OnItemRef(link, _, button, chatFrame)
   if button ~= "LeftButton" then return end
 
   -- The action is picked before the link is read, because inside restricted content the link is a secret
@@ -31,25 +31,10 @@ local function OnChatNameClick(_, chatFrame, link, _, button)
   if action == "whisper" and not IsModifiedClick("CHATLINK") then return end
 
   -- A line kept from restricted content stays secret after the lockdown ends, so its link is checked too.
-  if not ns.CanAccess(link) then return end
+  if not ns.CanAccess(link) or type(link) ~= "string" then return end
 
-  local name = link:match("^player:([^:]+)")
-  if not name or name == "" then return end
-
-  -- GetTime is frozen for the frame, so stamping it marks the intent as belonging to this click alone
-  -- and a SetItemRef from any other source cannot consume it.
-  pendingClick = { action = action, name = name, source = chatFrame, frameTime = GetTime() }
-end
-
-local function OnItemRef()
-  local click = pendingClick
-  pendingClick = nil
-  if not click or click.frameTime ~= GetTime() then return end
-
-  -- A CHATLINK click makes the default handler insert the name into the open box or run a /who instead
-  -- of whispering. A whisper opened before that would get the name typed into it, so it waits until now.
-  -- After any other click the whisper box Blizzard opened stays open, since closing it writes chat state.
-  ns.RunAction(click.action, click.name, click.source)
+  local name = link:match("^player:([^:]+)") or link:match("^playerCommunity:([^:]+)")
+  if name and name ~= "" then ns.RunAction(action, name, chatFrame) end
 end
 
 -- Unit frames ------------------------------------------------------------------------------------
@@ -80,12 +65,15 @@ local function OnUnitFrameClick(frame, button)
   ns.RunAction(action, ns.UnitFullName(unit))
 end
 
--- The compact setup also runs for nameplates (Blizzard_NamePlateBase.lua). Those may be forbidden to
--- addon code and never take clicks (disableMouse), so they are left alone.
 local function HookUnitFrame(frame)
-  if frame:IsForbidden() or frame.disableMouse then return end
-
   HookScriptOnce(frame, "OnClick", OnUnitFrameClick)
+end
+
+-- The compact setup also runs for nameplates and pet frames, which take no clicks and may be forbidden to
+-- addon code. Party and raid player frames are the ones set up with DefaultCompactUnitFrameSetup
+-- (CompactPartyFrame.lua, Blizzard_CompactRaidFrameContainer.lua), and the function is a plain value.
+local function OnCompactFrameSetUp(frame, setUpFunc)
+  if setUpFunc == DefaultCompactUnitFrameSetup then HookUnitFrame(frame) end
 end
 
 local function HookPartyFrames()
@@ -105,7 +93,7 @@ local function HookUnitFrames()
   hooksecurefunc(PartyFrame, "InitializePartyMemberFrames", HookPartyFrames)
 
   -- Raid frames and raid-style party frames all pass through this one setup call.
-  hooksecurefunc("CompactUnitFrame_SetUpFrame", HookUnitFrame)
+  hooksecurefunc("CompactUnitFrame_SetUpFrame", OnCompactFrameSetUp)
 end
 
 -- Scrolling lists --------------------------------------------------------------------------------
@@ -120,7 +108,7 @@ local function AttachListClick(scrollBox, script, handler)
   end
 
   scrollBox:ForEachFrame(HookRow)
-  ScrollUtil.AddInitializedFrameCallback(scrollBox, function(_, frame) HookRow(frame) end, scrollBox)
+  ScrollUtil.AddInitializedFrameCallback(scrollBox, function(_, frame) HookRow(frame) end, ns)
 end
 
 local function OnFriendsListClick(frame, button)
@@ -180,7 +168,6 @@ end
 -- Install ----------------------------------------------------------------------------------------
 
 -- Hooks go in at file load rather than login, so no frame the client sets up in between is missed.
-EventRegistry:RegisterCallback("ChatFrame.OnHyperlinkClick", OnChatNameClick, ns.addonName)
 hooksecurefunc("SetItemRef", OnItemRef)
 
 HookUnitFrames()

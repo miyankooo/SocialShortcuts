@@ -1,47 +1,35 @@
-# SocialShortcuts
+# Social Shortcuts
 
-Hold a modifier, left-click any player name, and whisper, invite or add them as a friend.
+Hold a modifier key and left-click a player name to whisper, invite or add them as a friend.
 
 ## Features
 
-**Three actions on a modifier-click.** Hold the modifier you assigned and left-click a player name, and instead of the default behaviour you get one of:
-
-| Action | What happens |
-| --- | --- |
-| Whisper | Opens the game's own whisper box, the same one its Whisper buttons open |
-| Invite to group | Invites the clicked player. A full party gets the game's own offer to convert to a raid |
-| Add friend | Adds the clicked player to your friends list |
-
-**Works on every player name in the interface:**
-
-- Chat — any clickable player name in the main chat windows
-- Unit frames — target, focus, both targets-of-target, party frames and raid frames
-- Friends list — WoW friends and Battle.net friends
-- Who list — the Who tab of the Group Finder
-- Group Finder — the leader of a listing
-- Guild roster — the Communities member list
-
-**Your own modifiers.** Every action is assigned in the in-game settings, and the modifier names match your platform: Mac users pick Command and Option, Windows users pick Windows and Alt.
-
-**Battle.net aware.** A Battle.net friend gets a real BNet whisper, an invite to whatever character they are playing, and an add-friend that works when they are on your realm.
-
-**Names the way the game writes them.** A click on a unit frame passes the name exactly as the game's own right-click menu would: `First Surname`, or `Name-Realm` for a cross-realm player where regionally unique names are off. Chat and list clicks pass the same string the game's own menus pass for that row.
-
-**Native whispers.** Every whisper goes through the game's own whisper call, the one its friends list and right-click menu use. The addon never writes to the chat windows itself.
+- Three actions on a modifier-click: Whisper, Invite and Add Friend. Inviting into a full party offers to convert it to a raid.
+- Works on player names in chat (main chat windows and the Communities chat), unit frames (target, focus, both targets of target, party and raid frames) and the social lists (friends, the Who tab, Group Finder listing leaders and the guild roster).
+- Battle.net friends in the friends list get a Battle.net whisper and an invite to the character they are playing. Add Friend does nothing on them, since they are already your friend.
 
 ## Installation
 
-Drop the `SocialShortcuts` folder into the AddOns folder of WoW Forever:
+1. Install it with the CurseForge app under WoW Forever, or copy the `SocialShortcuts` folder into `World of Warcraft/_classic_beta_/Interface/AddOns/`.
+2. Restart the game or type `/reload`.
+3. Enable Social Shortcuts in the AddOns list.
 
-```
-World of Warcraft/_classic_beta_/Interface/AddOns/
-```
+## Usage
+
+1. Hold the key bound to an action. The first load prints your keys once.
+2. Left-click a player name.
+3. Change the keys with `/ssc` or Social Shortcuts in the addon menu at the minimap.
+
+## Commands
+
+| Command | Does |
+| --- | --- |
+| `/socialshortcuts` | Opens the settings |
+| `/ssc` | Short form of `/socialshortcuts` |
 
 ## Settings
 
-Open **Options → AddOns → Social Shortcuts**, pick **Social Shortcuts** in the addon menu at the minimap, or type `/socialshortcuts` (short form `/ssc`).
-
-Each action has a dropdown listing every modifier the game can detect, plus *Unbound*. The names depend on your platform:
+Options, AddOns, Social Shortcuts has one dropdown per action. Each lists None and every modifier the game can detect, named for your platform:
 
 | macOS | Windows |
 | --- | --- |
@@ -55,32 +43,27 @@ Defaults:
 | Action | macOS | Windows |
 | --- | --- | --- |
 | Whisper | Control | Ctrl |
-| Invite to group | Command | Alt |
-| Add friend | Option | Windows |
+| Invite | Command | Alt |
+| Add Friend | Option | Shift |
 
-Two rules keep the bindings predictable:
-
-- **Exactly one modifier must be held.** Holding Control and Shift together does nothing, so one key combination can never fire two actions.
-- **Picking a modifier another action already uses swaps the two**, instead of quietly unbinding the action you did not touch.
-
-Settings are saved per account.
+Exactly one modifier must be held, so one key combination never fires two actions. Picking a modifier another action already uses swaps the two. Settings are saved per account.
 
 ## Requirements
 
-WoW Forever 1.60.x (`## Interface: 16001`). No libraries, no dependencies.
+WoW Forever 1.60.x (Interface `16001`). No other addons needed.
 
 ## Restrictions
 
-**Off inside restricted content.** In dungeons, raids, boss encounters and PvP matches the game hides player names from addons and refuses them when an addon passes them on. Every shortcut does nothing there and the default click runs as usual. Chat lines kept from such content stay hidden afterwards, so a name on them keeps the default click. A unit frame whose name or identity the game keeps hidden keeps the default click too.
+The shortcuts are off inside restricted content. In dungeons, raids, boss encounters and PvP matches the game hides player names from addons, so the default click runs. Chat lines kept from such content and unit frames whose identity the game hides keep the default click too.
 
-**In chat, the game's own click still runs.** The game opens a whisper on every left-click of a chat name, modifier or not, so Invite to group and Add friend from chat also leave that whisper box open. Press Escape to close it.
+In chat, the game's own click still runs. It opens a whisper on every left-click of a chat name, so Invite and Add Friend from chat leave that whisper box open. Press Escape to close it.
 
-**Shift keeps its game meaning.** Shift-click on a chat name inserts the name into the text you're typing, or runs a /who. If you bind an action to Shift, that still happens and the action fires as well. A Shift whisper then replaces the typed text, just like the game's own Whisper button.
+Shift keeps its game meaning, and Add Friend uses it on Windows by default. Shift-click on a chat name inserts the name into the text you're typing, or runs a /who. That still happens and the action fires as well.
 
-**Main chat windows only.** Names in the Communities chat window open their link without the event the addon listens for, so they keep the default click.
+Battle.net communities keep the default click, because their member list shows accounts, not characters.
 
-**Battle.net communities keep the default click.** Their member list shows Battle.net accounts, not characters, so there is no character name to whisper, invite or befriend. Guild and character communities work as usual.
+Add Friend follows the game's friends setting. Where character friends are switched off, it says so instead of trying.
 
-**Add friend follows the game's friends setting.** Where character friends are switched off, Add friend says so instead of trying.
+## License
 
-**Not yet run in game.** Every part of the game interface this addon touches was checked against Blizzard's published UI source for 1.60.1, but it has not been tested on a live character.
+MIT. See [LICENSE](LICENSE).
