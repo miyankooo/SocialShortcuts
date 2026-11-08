@@ -40,8 +40,8 @@ print = function(line) table.insert(lines, line) end
 onLoaded()
 print = realPrint
 Check("the first load on a Mac turns the right-click option off", ns.IsCommandFree() and ns.db.invite == "META")
-Check("the first-run line says so, in one line",
-  #lines == 1 and lines[1]:find("Turned off Command left click as right click, so Command works as a key.", 1, true))
+Check("the first load prints nothing and keeps the note for the welcome line at login",
+  #lines == 0 and ns.firstRun.note == "Turned off Command left click as right click, so Command works as a key.")
 Check("a second free changes nothing and says nothing", ns.FreeCommandKey() == nil)
 
 IsMacClient = function() return false end

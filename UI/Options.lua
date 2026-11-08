@@ -183,7 +183,8 @@ EventUtil.ContinueOnPlayerLogin(RegisterPanel)
 
 local waitingForCombat = false
 
-local function OpenSettings()
+-- Shared with the welcome line's link.
+function ns.OpenSettings()
   if not categoryID then return end
 
   -- C_SettingsUtil.OpenSettingsPanel has restrictions the source does not spell out, so an open in
@@ -194,7 +195,7 @@ local function OpenSettings()
       waitingForCombat = true
       EventUtil.RegisterOnceFrameEventAndCallback("PLAYER_REGEN_ENABLED", function()
         waitingForCombat = false
-        OpenSettings()
+        ns.OpenSettings()
       end)
     end
     return
@@ -204,11 +205,11 @@ local function OpenSettings()
 end
 
 SLASH_SOCIALSHORTCUTS1, SLASH_SOCIALSHORTCUTS2 = "/socialshortcuts", "/ssc"
-SlashCmdList.SOCIALSHORTCUTS = OpenSettings
+SlashCmdList.SOCIALSHORTCUTS = ns.OpenSettings
 
 -- Addon Compartment entry points named in the toc. Blizzard calls them with the addon name first, then the
 -- menu row.
-SocialShortcuts_CompartmentClick = OpenSettings
+SocialShortcuts_CompartmentClick = ns.OpenSettings
 
 function SocialShortcuts_CompartmentEnter(_, menuButton)
   GameTooltip:SetOwner(menuButton, "ANCHOR_LEFT")

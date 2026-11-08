@@ -29,7 +29,7 @@ ns.modifierLabel = isMac and macLabels or pcLabels
 local knownTokens = tInvert(ns.modifierOrder)
 
 -- Labels are the strings Blizzard's own unit menu shows for the same actions (UnitPopupSharedButtonMixins.lua).
--- The verb completes the first-run hint. Invite comes last, so its Invite Asks to Join option sits right
+-- The verb completes the welcome line. Invite comes last, so its Invite Asks to Join option sits right
 -- below it in the settings.
 ns.actions = {
   { key = "whisper", label = WHISPER, verb = "whisper", help = "Open a whisper to the clicked player." },
@@ -143,21 +143,6 @@ function ns.PickAction()
   return action
 end
 
--- The addon has no visible surface of its own, so the first load on an account names the keys once. A
--- changed game option rides on the same line.
-local function PrintFirstRunHint(note)
-  local bindings = {}
-  for _, action in ipairs(ns.actions) do
-    local token = ns.db[action.key]
-    if token ~= "NONE" then
-      table.insert(bindings, ns.modifierLabel[token] .. " to " .. action.verb)
-    end
-  end
-  local hint = "Hold a key and left-click a player name: " .. table.concat(bindings, ", ")
-    .. ". Type /ssc to change the keys."
-  ns.Print(note and hint .. " " .. note or hint)
-end
-
 local function IsKeyTaken(db, token)
   for _, action in ipairs(ns.actions) do
     if db[action.key] == token then return true end
@@ -186,7 +171,8 @@ local function LoadSettings()
   if db.askToJoin == nil then db.askToJoin = ns.defaults.askToJoin end
   ns.db = db
 
-  if firstRun then PrintFirstRunHint(ns.FreeCommandKey()) end
+  -- The first load on an account frees the Command key. UI/Welcome.lua greets at login and passes on the note.
+  if firstRun then ns.firstRun = { note = ns.FreeCommandKey() } end
 end
 
 EventUtil.ContinueOnAddOnLoaded(addonName, LoadSettings)
