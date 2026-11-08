@@ -56,16 +56,17 @@ end
 
 local function Has(line, text) return line ~= nil and line:find(text, 1, true) ~= nil end
 
+local PREFIX = "<gold>[Social Shortcuts]</gold>: "
+local WHAT = "Whispers, invites or befriends a player when you hold a key and left-click their name. "
+local OPEN = "Open the <gold>|Haddon:SocialShortcuts|h[Settings]|h</gold> or type /ssc to choose your keys. "
+local MAC_KEYS = "Starting keys: Option to whisper, Control to add as a friend, Command to invite."
+local NOTE = " Turned off Command left click as right click, so Command works as a key."
+
 local lines, ns = Login(true, nil, true)
 Check("the first login prints one line", #lines == 1)
-Check("only the bracketed title is gold, the colon and the message are not",
-  Has(lines[1], "<gold>[Social Shortcuts]</gold>: Open the "))
-Check("it opens with the gold Settings link and /ssc",
-  Has(lines[1], "Open the <gold>|Haddon:SocialShortcuts|h[Settings]|h</gold> or type /ssc"))
-Check("it names the Mac starting keys",
-  Has(lines[1], "Starting keys: Option to whisper, Control to add as a friend, Command to invite."))
-Check("the changed game option rides on the same line, last",
-  Has(lines[1], "Command to invite. Turned off Command left click as right click, so Command works as a key."))
+Check("only the bracketed title is gold, the colon and the message are not", Has(lines[1], PREFIX .. "Whispers"))
+Check("Mac: what it does, the gold Settings link and /ssc, the starting keys, the changed game option last",
+  lines[1] == PREFIX .. WHAT .. OPEN .. MAC_KEYS .. NOTE)
 
 local opened = 0
 ns.OpenSettings = function() opened = opened + 1 end
@@ -77,11 +78,11 @@ Check("another addon's link or a secret one opens nothing", opened == 1)
 
 lines = Login(true, nil, false)
 Check("with the option already off the line has no note",
-  #lines == 1 and Has(lines[1], "Command to invite.") and not Has(lines[1], "Turned off"))
+  #lines == 1 and lines[1] == PREFIX .. WHAT .. OPEN .. MAC_KEYS)
 
 lines = Login(false, nil, nil)
 Check("Windows names Ctrl and Alt and leaves out unbound Add Friend",
-  #lines == 1 and Has(lines[1], "Starting keys: Ctrl to whisper, Alt to invite.") and not Has(lines[1], "friend"))
+  #lines == 1 and lines[1] == PREFIX .. WHAT .. OPEN .. "Starting keys: Ctrl to whisper, Alt to invite.")
 
 lines = Login(true, { whisper = "ALT", invite = "META", friend = "CTRL", askToJoin = true }, false)
 Check("a later login prints nothing", #lines == 0)

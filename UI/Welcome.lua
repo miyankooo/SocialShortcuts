@@ -9,6 +9,12 @@ local addonName, ns = ...
 -- chat, such as club invites (ItemRef.lua).
 local LINK = LinkTypes.AddOn .. ":" .. addonName
 
+local function SurfaceLink(label)
+  return NORMAL_FONT_COLOR:WrapTextInColorCode(LinkUtil.FormatLink(LinkTypes.AddOn, "[" .. label .. "]", addonName))
+end
+
+-- The set's welcome line: what the addon does, where to choose the keys, the keys it starts with, and last a
+-- game option the first load changed.
 local function PrintWelcome(note)
   local bindings = {}
   for _, action in ipairs(ns.actions) do
@@ -16,11 +22,11 @@ local function PrintWelcome(note)
     if token ~= "NONE" then table.insert(bindings, ns.modifierLabel[token] .. " to " .. action.verb) end
   end
 
-  local link = NORMAL_FONT_COLOR:WrapTextInColorCode(LinkUtil.FormatLink(LinkTypes.AddOn, "[" .. SETTINGS .. "]",
-    addonName))
-  local line = "Open the " .. link .. " or type /ssc to choose your keys, then hold one and left-click a "
-    .. "player's name. Starting keys: " .. table.concat(bindings, ", ") .. "."
-  ns.Print(note and line .. " " .. note or line)
+  local line = "Whispers, invites or befriends a player when you hold a key and left-click their name. Open the "
+    .. SurfaceLink(SETTINGS) .. " or type /ssc to choose your keys."
+  if #bindings > 0 then line = line .. " Starting keys: " .. table.concat(bindings, ", ") .. "." end
+  if note then line = line .. " " .. note end
+  ns.Print(line)
 end
 
 EventUtil.ContinueOnPlayerLogin(function()
