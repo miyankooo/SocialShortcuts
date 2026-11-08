@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/miyankooo/SocialShortcuts/compare/v1.1.0...v1.2.0) (2026-11-08)
+
+
+### Features
+
+* The welcome line on first login links straight to the settings to choose your keys ([0d6bf47](https://github.com/miyankooo/SocialShortcuts/commit/0d6bf47d195ffb65cfbeeee7c1a0f1f9198f8895))
+
 ## [1.1.0](https://github.com/miyankooo/SocialShortcuts/compare/v1.0.0...v1.1.0) (2026-11-08)
 
 
