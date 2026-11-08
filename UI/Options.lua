@@ -150,8 +150,7 @@ local function AddActionRow(panel, action, index)
         radio:SetEnabled(false)
         radio:SetTooltip(function(tooltip)
           GameTooltip_SetTitle(tooltip, ns.modifierLabel.META)
-          GameTooltip_AddErrorLine(tooltip, "Turn off " .. MAC_USE_COMMAND_LEFT_CLICK_AS_RIGHT_CLICK .. " in "
-            .. MAC_SETTINGS_LABEL .. " to use Command.")
+          GameTooltip_AddErrorLine(tooltip, ns.CommandBlockedLine())
         end)
       end
     end
@@ -221,8 +220,21 @@ function ns.OpenSettings()
   Settings.OpenToCategory(categoryID)
 end
 
+-- One long command and one short alias. The bare command opens the main surface; help, intro and minimap
+-- (where there is a minimap button) are the shared words, and any other word prints the hint.
 SLASH_SOCIALSHORTCUTS1, SLASH_SOCIALSHORTCUTS2 = "/socialshortcuts", "/ssc"
-SlashCmdList.SOCIALSHORTCUTS = ns.OpenSettings
+SlashCmdList.SOCIALSHORTCUTS = function(message)
+  local command = strtrim(message or ""):lower()
+  if command == "" then
+    ns.OpenSettings()
+  elseif command == "help" or command == "?" then
+    ns.Print("Type /ssc for the settings, /ssc intro to see the welcome line again, or /ssc help for this list.")
+  elseif command == "intro" then
+    ns.ReplayIntro()
+  else
+    ns.Print("Unknown command. Type /ssc help for the list.")
+  end
+end
 
 -- Addon Compartment entry points named in the toc. Blizzard calls them with the addon name first, then the
 -- menu row.

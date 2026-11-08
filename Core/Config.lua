@@ -59,6 +59,12 @@ function ns.IsCommandFree()
   return not isMac or not C_CVar.GetCVarBool(COMMAND_RIGHT_CLICK)
 end
 
+-- What to do while the option blocks Command: the settings grey Command out with this line, and the replayed
+-- welcome line ends with it while Command is bound.
+function ns.CommandBlockedLine()
+  return "Turn off " .. MAC_USE_COMMAND_LEFT_CLICK_AS_RIGHT_CLICK .. " in " .. MAC_SETTINGS_LABEL .. " to use Command."
+end
+
 -- The Mac defaults bind Command, so the first load and the Defaults button turn the option off. After that
 -- the game's own checkbox decides, and the settings grey Command out while it is on. Returns the note for
 -- the chat line when it had to change the option, so the user learns why Command-click stopped

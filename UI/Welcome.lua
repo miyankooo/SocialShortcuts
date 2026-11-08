@@ -13,9 +13,9 @@ local function SurfaceLink(label)
   return NORMAL_FONT_COLOR:WrapTextInColorCode(LinkUtil.FormatLink(LinkTypes.AddOn, "[" .. label .. "]", addonName))
 end
 
--- The set's welcome line: what the addon does, where to choose the keys, the keys it starts with, and last a
--- game option the first load changed.
-local function PrintWelcome(note)
+-- The set's welcome line: what the addon does, where to choose the keys, the keys bound now, and last a game
+-- option the first load changed or a bound key needs.
+local function PrintWelcome(keysLabel, note)
   local bindings = {}
   for _, action in ipairs(ns.actions) do
     local token = ns.db[action.key]
@@ -24,14 +24,28 @@ local function PrintWelcome(note)
 
   local line = "Whispers, invites or befriends a player when you hold a key and left-click their name. Open the "
     .. SurfaceLink(SETTINGS) .. " or type /ssc to choose your keys."
-  if #bindings > 0 then line = line .. " Starting keys: " .. table.concat(bindings, ", ") .. "." end
+  if #bindings > 0 then line = line .. " " .. keysLabel .. ": " .. table.concat(bindings, ", ") .. "." end
   if note then line = line .. " " .. note end
   ns.Print(line)
 end
 
 EventUtil.ContinueOnPlayerLogin(function()
-  if ns.firstRun then PrintWelcome(ns.firstRun.note) end
+  if ns.firstRun then PrintWelcome("Starting keys", ns.firstRun.note) end
 end)
+
+-- A bound Command does nothing while the game still treats Command-click as a right click.
+local function CommandNote()
+  if ns.IsCommandFree() then return nil end
+  for _, action in ipairs(ns.actions) do
+    if ns.db[action.key] == "META" then return ns.CommandBlockedLine() end
+  end
+end
+
+-- /ssc intro replays the onboarding. The feature is a modifier-click on a name, which has no control of the
+-- addon's own to point a help tip at, so the replay is the welcome line alone, with the keys as they are now.
+function ns.ReplayIntro()
+  PrintWelcome("Your keys", CommandNote())
+end
 
 -- Another addon's link may come from a line kept from restricted content, so it is checked before the
 -- comparison.
