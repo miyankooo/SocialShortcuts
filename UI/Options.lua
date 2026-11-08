@@ -1,27 +1,96 @@
 local _, ns = ...
 
-local categoryID
 local dropdowns = {}
 local askToJoinCheckbox
-local intro
 
 local askToJoin = {
   label = "Invite Asks to Join",
   help = "While you're not in a group, inviting a player who is already in one asks to join their group instead.",
 }
 
--- The page is its own canvas, not Blizzard's settings list. Picking in a list dropdown runs the addon's
--- option code inside Blizzard's pooled controls, and on build 70532 that taints Blizzard's own settings
--- until /reload (nameplate errors, 2026-10-21). A dropdown on the addon's own frame stays clean.
--- Header, row and spacing metrics copy Blizzard_SettingsList.xml, Blizzard_SettingsList.lua and
--- Blizzard_SettingControls.xml.
-local ROW_HEIGHT = 26
-local ROW_SPACING = 9
-local LABEL_X = 37
+-- Text in a font role: GameFontNormal (heading, gold), GameFontHighlight (body, white), GameFontDisable (muted,
+-- grey), GameFontNormalLarge (title, 16 px, a dialog's subject line only).
+local function CreateText(parent, fontObject, layer)
+  local text = parent:CreateFontString(nil, layer or "ARTWORK")
+  text:SetFontObject(fontObject or GameFontHighlight)
+  text:SetJustifyH("LEFT")
+  return text
+end
+
+-- A GameTooltip owned by the hovered frame, filled with Blizzard's GameTooltip_* line helpers. A frame whose
+-- template already sets OnEnter gets HookScript instead.
+local function AttachTooltip(frame, fill, anchor)
+  frame:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, anchor or "ANCHOR_RIGHT")
+    fill(GameTooltip, self)
+    GameTooltip:Show()
+  end)
+  frame:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+-- Blizzard's menu dropdown, filled with SetupMenu. Its art hangs 8 px past each side, so the caller indents it by 8.
+local function CreateDropdown(parent, width, name)
+  local dropdown = CreateFrame("DropdownButton", name, parent, "WowStyle1DropdownTemplate")
+  dropdown:SetWidth(width or 160)
+  return dropdown
+end
+
+-- The addon's page in Blizzard's Settings window, as its own canvas, copying the settings list's look
+-- (Blizzard_SettingsList.xml:14-30, Blizzard_SettingControls.xml, Blizzard_SettingControls.lua). Never a settings
+-- list: a pick in a list dropdown runs addon code in Blizzard's pooled controls and taints its settings until /reload.
+-- Seen here on build 70532: nameplate errors until /reload (2026-10-21).
+local ROW_HEIGHT, ROW_SPACING, LABEL_X, INTRO_Y, INTRO_GAP = 26, 9, 37, -64, 16
+local categoryID
+
+-- The dropdowns and the checkbox share one left edge, CENTER -40 of the row, so the checkbox reads as part of
+-- Invite above it. Its help sits a tight step under it.
 local CONTROL_X = -40
 local HELP_GAP = 4
-local INTRO_Y = -64
-local INTRO_GAP = 16
+
+local function BuildPanel(introText, restoreDefaults)
+  local panel = CreateFrame("Frame")
+  local title = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightHuge")
+  title:SetJustifyH("LEFT")
+  title:SetPoint("TOPLEFT", 7, -22)
+  title:SetText(ns.title)
+  local divider = panel:CreateTexture(nil, "ARTWORK")
+  divider:SetAtlas("Options_HorizontalDivider", true)
+  divider:SetPoint("TOP", 0, -50)
+  local defaults = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+  defaults:SetSize(96, 22)
+  defaults:SetPoint("TOPRIGHT", -36, -16)
+  defaults:SetText(SETTINGS_DEFAULTS)
+  defaults:SetScript("OnClick", restoreDefaults)
+  panel.intro = CreateText(panel, GameFontHighlight)
+  panel.intro:SetPoint("TOPLEFT", LABEL_X, INTRO_Y)
+  panel.intro:SetPoint("TOPRIGHT", -LABEL_X, INTRO_Y)
+  panel.intro:SetText(introText)
+  return panel
+end
+
+-- One row below the intro, its label in GameFontNormal from x 37 to the row's centre less 85. A checkbox
+-- (SettingsCheckboxTemplate) goes at the row's CENTER -80, a WowStyle1DropdownTemplate 220 wide at CENTER -48.
+-- Within one page, controls share one left edge.
+local function AddRow(panel, index, label, fillTooltip)
+  local y = -INTRO_GAP - (index - 1) * (ROW_HEIGHT + ROW_SPACING)
+  local row = CreateFrame("Frame", nil, panel)
+  row:SetHeight(ROW_HEIGHT)
+  row:SetPoint("TOPLEFT", panel.intro, "BOTTOMLEFT", -LABEL_X, y)
+  row:SetPoint("TOPRIGHT", panel.intro, "BOTTOMRIGHT", LABEL_X, y)
+  row:EnableMouse(true)
+  AttachTooltip(row, fillTooltip)
+  local text = CreateText(row, GameFontNormal)
+  text:SetPoint("LEFT", LABEL_X, 0)
+  text:SetPoint("RIGHT", row, "CENTER", -85, 0)
+  text:SetText(label)
+  return row
+end
+
+local function RegisterPanel(panel)
+  local category = Settings.RegisterCanvasLayoutCategory(panel, ns.title)
+  Settings.RegisterAddOnCategory(category)
+  categoryID = category:GetID()
+end
 
 -- The page is the addon's only visible surface, so its top says what the keys do before any row asks for
 -- one. The keys are named from the platform's own list, so Windows never reads Command.
@@ -40,45 +109,31 @@ local function IntroText()
     .. "inserts the name or runs a /who."
 end
 
+-- The tooltip a row and its control share: the setting's name over its help.
+local function FillHelp(entry)
+  return function(tooltip)
+    GameTooltip_SetTitle(tooltip, entry.label)
+    GameTooltip_AddNormalLine(tooltip, entry.help)
+  end
+end
+
 -- A swap can change another row, and its menu is closed, so a refresh of its selection text is enough.
 local function RefreshDropdowns()
   for _, dropdown in pairs(dropdowns) do dropdown:Update() end
 end
 
-local function ShowHelp(owner, entry)
-  GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-  GameTooltip_SetTitle(GameTooltip, entry.label)
-  GameTooltip_AddNormalLine(GameTooltip, entry.help)
-  GameTooltip:Show()
-end
-
--- One settings row with its label, and the entry's help on hover. Rows hang below the intro, whose height
--- follows how its text wraps on the canvas.
-local function AddRow(panel, index, entry)
-  local y = -INTRO_GAP - (index - 1) * (ROW_HEIGHT + ROW_SPACING)
-  local row = CreateFrame("Frame", nil, panel)
-  row:SetHeight(ROW_HEIGHT)
-  row:SetPoint("TOPLEFT", intro, "BOTTOMLEFT", -LABEL_X, y)
-  row:SetPoint("TOPRIGHT", intro, "BOTTOMRIGHT", LABEL_X, y)
-  row:EnableMouse(true)
-  row:SetScript("OnEnter", function() ShowHelp(row, entry) end)
-  row:SetScript("OnLeave", GameTooltip_Hide)
-
-  local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  label:SetJustifyH("LEFT")
-  label:SetPoint("LEFT", LABEL_X, 0)
-  label:SetPoint("RIGHT", row, "CENTER", -85, 0)
-  label:SetText(entry.label)
-  return row
-end
-
 local function AddActionRow(panel, action, index)
-  local row = AddRow(panel, index, action)
+  local fillTooltip = FillHelp(action)
+  local row = AddRow(panel, index, action.label, fillTooltip)
 
-  local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
-  dropdown:SetWidth(220)
+  local dropdown = CreateDropdown(row, 220)
   dropdown:SetPoint("LEFT", row, "CENTER", CONTROL_X, 0)
-  dropdown:HookScript("OnEnter", function() ShowHelp(dropdown, action) end)
+  -- The template sets its own OnEnter for its hover art, so the help hooks it.
+  dropdown:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    fillTooltip(GameTooltip, self)
+    GameTooltip:Show()
+  end)
   dropdown:HookScript("OnLeave", GameTooltip_Hide)
   dropdown:SetupMenu(function(_, rootDescription)
     for _, token in ipairs(ns.modifierOrder) do
@@ -113,23 +168,20 @@ end
 -- because when it applies is not clear from the label alone. Init wires the click to its own callback
 -- registry, the way the list control listens to it.
 local function AddAskToJoinRow(panel, index)
-  local row = AddRow(panel, index, askToJoin)
+  local fillTooltip = FillHelp(askToJoin)
+  local row = AddRow(panel, index, askToJoin.label, fillTooltip)
 
   local checkbox = CreateFrame("CheckButton", nil, row, "SettingsCheckboxTemplate")
   checkbox:SetPoint("LEFT", row, "CENTER", CONTROL_X, 0)
 
   -- Below the checkbox and starting at its left edge, so a wrap grows down into free space and never into
   -- the Invite row above.
-  local help = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  help:SetJustifyH("LEFT")
+  local help = CreateText(row, GameFontHighlight)
   help:SetPoint("TOPLEFT", row, "BOTTOM", CONTROL_X, -HELP_GAP)
   help:SetPoint("TOPRIGHT", row, "BOTTOMRIGHT", -LABEL_X, -HELP_GAP)
   help:SetText(askToJoin.help)
 
-  checkbox:Init(ns.db.askToJoin, function()
-    GameTooltip_SetTitle(SettingsTooltip, askToJoin.label)
-    GameTooltip_AddNormalLine(SettingsTooltip, askToJoin.help)
-  end)
+  checkbox:Init(ns.db.askToJoin, function() fillTooltip(SettingsTooltip) end)
   checkbox:RegisterCallback(SettingsCheckboxMixin.Event.OnValueChanged, function(_, checked)
     ns.db.askToJoin = checked
   end, row)
@@ -144,51 +196,17 @@ local function RestoreDefaults()
   RefreshDropdowns()
 end
 
-local function BuildPanel()
-  local panel = CreateFrame("Frame")
-
-  local title = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightHuge")
-  title:SetJustifyH("LEFT")
-  title:SetPoint("TOPLEFT", 7, -22)
-  title:SetText(ns.title)
-
-  local divider = panel:CreateTexture(nil, "ARTWORK")
-  divider:SetAtlas("Options_HorizontalDivider", true)
-  divider:SetPoint("TOP", 0, -50)
-
-  local defaults = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-  defaults:SetSize(96, 22)
-  defaults:SetPoint("TOPRIGHT", -36, -16)
-  defaults:SetText(SETTINGS_DEFAULTS)
-  defaults:SetScript("OnClick", RestoreDefaults)
-
-  intro = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-  intro:SetJustifyH("LEFT")
-  intro:SetPoint("TOPLEFT", LABEL_X, INTRO_Y)
-  intro:SetPoint("TOPRIGHT", -LABEL_X, INTRO_Y)
-  intro:SetText(IntroText())
-
+EventUtil.ContinueOnPlayerLogin(function()
+  local panel = BuildPanel(IntroText(), RestoreDefaults)
   for index, action in ipairs(ns.actions) do AddActionRow(panel, action, index) end
   AddAskToJoinRow(panel, #ns.actions + 1)
-  return panel
-end
+  RegisterPanel(panel)
+end)
 
-local function RegisterPanel()
-  local category = Settings.RegisterCanvasLayoutCategory(BuildPanel(), ns.title)
-  Settings.RegisterAddOnCategory(category)
-  categoryID = category:GetID()
-end
-
-EventUtil.ContinueOnPlayerLogin(RegisterPanel)
-
+-- Opening in combat waits for combat to end, since the settings panel's open path has restrictions.
 local waitingForCombat = false
-
--- Shared with the welcome line's link.
 function ns.OpenSettings()
   if not categoryID then return end
-
-  -- C_SettingsUtil.OpenSettingsPanel has restrictions the source does not spell out, so an open in
-  -- combat waits for combat to end instead of failing silently.
   if InCombatLockdown() then
     ns.Print("Opens after combat.")
     if not waitingForCombat then
@@ -200,7 +218,6 @@ function ns.OpenSettings()
     end
     return
   end
-
   Settings.OpenToCategory(categoryID)
 end
 
