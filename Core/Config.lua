@@ -4,8 +4,9 @@ ns.title = C_AddOns.GetAddOnMetadata(addonName, "Title")
 
 -- The client offers exactly four modifier predicates, so a binding stores the physical modifier and the
 -- platform only decides what it is called: META is Command on macOS, ALT is Option. Detecting the platform
--- here keeps every other file free of Mac branches. META stays tested on Windows too, so a click with the
--- Windows key held never counts as a plain Ctrl, Alt or Shift click.
+-- here keeps every other file free of Mac branches. Shift is never offered, because a Shift-click on a name
+-- in chat is the game's own insert-name or /who. Shift, and the Windows key on Windows, stay tested, so a
+-- click with one of them held never counts as a plain Ctrl or Alt click.
 local modifierTests = {
   SHIFT = IsShiftKeyDown,
   CTRL = IsControlKeyDown,
@@ -15,34 +16,37 @@ local modifierTests = {
 
 local isMac = IsMacClient()
 
-local macLabels = { NONE = NONE, SHIFT = "Shift", CTRL = "Control", ALT = "Option", META = "Command" }
-local pcLabels = { NONE = NONE, SHIFT = "Shift", CTRL = "Ctrl", ALT = "Alt" }
+local macLabels = { NONE = NONE, CTRL = "Control", ALT = "Option", META = "Command" }
+local pcLabels = { NONE = NONE, CTRL = "Ctrl", ALT = "Alt" }
 
 -- Fixed order so the dropdowns read the same every session, with the opt-out first. Windows leaves out its
--- fourth key, because the Windows key opens the Start menu over the game and no game option blocks it. A
--- saved Windows key binding is then unknown and falls back to the default in LoadSettings.
-ns.modifierOrder = { "NONE", "SHIFT", "CTRL", "ALT" }
+-- third key, because the Windows key opens the Start menu over the game and no game option blocks it. A
+-- saved binding on a key no longer offered is then unknown and falls back in LoadSettings.
+ns.modifierOrder = { "NONE", "CTRL", "ALT" }
 if isMac then table.insert(ns.modifierOrder, "META") end
 ns.modifierLabel = isMac and macLabels or pcLabels
 
 local knownTokens = tInvert(ns.modifierOrder)
 
 -- Labels are the strings Blizzard's own unit menu shows for the same actions (UnitPopupSharedButtonMixins.lua).
--- The verb completes the first-run hint.
+-- The verb completes the first-run hint. Invite comes last, so its Invite Asks to Join option sits right
+-- below it in the settings.
 ns.actions = {
   { key = "whisper", label = WHISPER, verb = "whisper", help = "Open a whisper to the clicked player." },
-  { key = "invite", label = PARTY_INVITE, verb = "invite", help = "Invite the clicked player to your group." },
   { key = "friend", label = ADD_FRIEND, verb = "add as a friend", help = "Add the clicked player to your friends list." },
+  {
+    key = "invite", label = PARTY_INVITE, verb = "invite",
+    help = "Invite the clicked player to your group. In a group you don't lead, it suggests them to your leader instead.",
+  },
 }
 
--- Defaults follow reach from a hand on WASD: Invite, used most, gets the key next to the space bar, and
--- Whisper the next easiest. Shift goes to Add Friend, because a Shift-click on a chat name also runs the
--- game's own insert-name or /who, which does no harm there. The options panel reads these too, so its
--- Defaults button restores the same values.
+-- Defaults follow reach from a hand on WASD: Invite, used most, gets the key next to the space bar, Whisper
+-- the next easiest and Add Friend, used least, the farthest. Windows has two keys, so Add Friend starts
+-- unbound there. The options panel reads these too, so its Defaults button restores the same values.
 ns.defaults = {
   whisper = isMac and "ALT" or "CTRL",
   invite = isMac and "META" or "ALT",
-  friend = "SHIFT",
+  friend = isMac and "CTRL" or "NONE",
   askToJoin = true,
 }
 
@@ -154,24 +158,33 @@ local function PrintFirstRunHint(note)
   ns.Print(note and hint .. " " .. note or hint)
 end
 
+local function IsKeyTaken(db, token)
+  for _, action in ipairs(ns.actions) do
+    if db[action.key] == token then return true end
+  end
+end
+
 -- A token the dropdowns do not offer would bind nothing and leave its dropdown blank, so an unknown or
--- missing value falls back to the default. A toggle keeps any saved true or false. Keys of settings the
--- addon no longer has are dropped.
+-- missing value falls back to the default, or to None when another action already holds that key. A toggle
+-- keeps any saved true or false. Keys of settings the addon no longer has are dropped.
 local function LoadSettings()
   local firstRun = type(SocialShortcutsDB) ~= "table"
   if firstRun then SocialShortcutsDB = {} end
+  local db = SocialShortcutsDB
 
-  for key in pairs(SocialShortcutsDB) do
-    if ns.defaults[key] == nil then SocialShortcutsDB[key] = nil end
+  for key, value in pairs(db) do
+    local default = ns.defaults[key]
+    local valid = type(default) == "boolean" and type(value) == "boolean" or knownTokens[value]
+    if default == nil or not valid then db[key] = nil end
   end
-  for key, value in pairs(ns.defaults) do
-    local saved = SocialShortcutsDB[key]
-    local valid = type(value) == "boolean" and type(saved) == "boolean" or knownTokens[saved]
-    if not valid then
-      SocialShortcutsDB[key] = value
+  for _, action in ipairs(ns.actions) do
+    if db[action.key] == nil then
+      local default = ns.defaults[action.key]
+      db[action.key] = IsKeyTaken(db, default) and "NONE" or default
     end
   end
-  ns.db = SocialShortcutsDB
+  if db.askToJoin == nil then db.askToJoin = ns.defaults.askToJoin end
+  ns.db = db
 
   if firstRun then PrintFirstRunHint(ns.FreeCommandKey()) end
 end

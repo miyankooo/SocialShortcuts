@@ -49,6 +49,7 @@ end
 local hoveredLink
 local linkCover = CreateFrame("Button", nil, UIParent)
 linkCover:SetFrameStrata("DIALOG")
+linkCover:EnableMouse(true)
 linkCover:RegisterForClicks("LeftButtonUp")
 linkCover:Hide()
 
@@ -58,22 +59,44 @@ local function TakesChatClick()
     and not C_ChatInfo.InChatMessagingLockdown()
 end
 
+-- The bounds place the link inside its line, but Blizzard's own code reads them from the line's bottom left
+-- (GameDialogDefs.lua) and from its top left (UIPanelTemplatesShared.lua). The cursor is on the link while
+-- it is hovered, so the cover takes the reading that holds the cursor. With neither, it stays hidden, since a
+-- cover beside the cursor would take a click meant for something else. Line geometry turns secret where the
+-- client restricts it, so it is checked before any arithmetic.
+local function LinkBottom(link)
+  local region = link.region
+  local scale = region:GetEffectiveScale()
+  local left, bottom, _, height = region:GetRect()
+  if not ns.CanAccess(scale) or not ns.CanAccess(left) or not left then return end
+
+  local x, y = GetCursorPosition()
+  x, y = x / scale - left, y / scale - bottom
+  if x < link.left or x > link.left + link.width then return end
+
+  for _, linkBottom in ipairs({ link.bottom, height + link.bottom }) do
+    if y >= linkBottom and y <= linkBottom + link.height then return linkBottom end
+  end
+end
+
 local function UpdateLinkCover()
-  if not hoveredLink or not TakesChatClick() then
+  local link = hoveredLink
+  local linkBottom = link and TakesChatClick() and LinkBottom(link)
+  if not linkBottom then
     linkCover:Hide()
     return
   end
 
-  local link = hoveredLink
+  -- The cover sits on UIParent but measures in the line's units, so it takes the line's scale.
+  linkCover:SetScale(link.region:GetEffectiveScale() / UIParent:GetEffectiveScale())
   linkCover:ClearAllPoints()
-  linkCover:SetPoint("BOTTOMLEFT", link.region, "BOTTOMLEFT", link.left, link.bottom)
+  linkCover:SetPoint("BOTTOMLEFT", link.region, "BOTTOMLEFT", link.left, linkBottom)
   linkCover:SetSize(link.width, link.height)
   linkCover:Show()
 end
 
--- The bounds are offsets from the line's bottom left, as Blizzard's own link tooltips read them
--- (GameDialogDefs.lua). A link from restricted content is a secret and is never read. The line's text is
--- kept, so a click after new chat has redrawn the line never acts on a name that is no longer there.
+-- A link from restricted content is a secret and is never read. The line's text is kept, so a click after
+-- new chat has redrawn the line never acts on a name that is no longer there.
 local function OnChatLinkEnter(chatFrame, link, _, region, left, bottom, width, height)
   local name = ns.CanAccess(link) and type(link) == "string" and PlayerNameFromLink(link)
   local text = name and region:GetText()

@@ -25,11 +25,14 @@ local function Check(label, condition)
 end
 
 local labels = ns.modifierLabel
-Check("macOS names the keys Shift, Control, Option and Command",
-  labels.SHIFT == "Shift" and labels.CTRL == "Control" and labels.ALT == "Option" and labels.META == "Command")
+Check("macOS offers Control, Option and Command, never Shift",
+  labels.CTRL == "Control" and labels.ALT == "Option" and labels.META == "Command" and labels.SHIFT == nil
+  and #ns.modifierOrder == 4)
 
-Check("Mac defaults: Option whispers, Command invites, Shift adds a friend",
-  ns.defaults.whisper == "ALT" and ns.defaults.invite == "META" and ns.defaults.friend == "SHIFT")
+Check("Mac defaults: Option whispers, Command invites, Control adds a friend",
+  ns.defaults.whisper == "ALT" and ns.defaults.invite == "META" and ns.defaults.friend == "CTRL")
+Check("the settings list Whisper, Add Friend, then Invite above its option",
+  ns.actions[1].key == "whisper" and ns.actions[2].key == "friend" and ns.actions[3].key == "invite")
 
 Check("Command is taken while the game treats Command-click as a right click", not ns.IsCommandFree())
 local lines, realPrint = {}, print
@@ -45,21 +48,25 @@ IsMacClient = function() return false end
 local pc = {}
 assert(loadfile("Core/Config.lua"))("SocialShortcuts", pc)
 labels = pc.modifierLabel
-Check("Windows names the keys Shift, Ctrl and Alt and offers no Windows key",
-  labels.SHIFT == "Shift" and labels.CTRL == "Ctrl" and labels.ALT == "Alt" and labels.META == nil
-  and #pc.modifierOrder == 4 and pc.modifierOrder[4] == "ALT")
-SocialShortcutsDB = { whisper = "CTRL", invite = "ALT", friend = "META", join = "NONE" }
+Check("Windows offers Ctrl and Alt, never Shift or the Windows key",
+  labels.CTRL == "Ctrl" and labels.ALT == "Alt" and labels.SHIFT == nil and labels.META == nil
+  and #pc.modifierOrder == 3)
+SocialShortcutsDB = { whisper = "SHIFT", invite = "ALT", friend = "META", join = "NONE" }
 onLoaded()
-Check("a saved Windows key binding falls back to the default", pc.db.friend == "SHIFT")
+Check("saved keys no longer offered fall back to the defaults", pc.db.whisper == "CTRL" and pc.db.friend == "NONE")
 Check("a setting the addon no longer has is dropped", pc.db.join == nil)
 Check("a missing toggle starts on", pc.db.askToJoin == true)
-SocialShortcutsDB = { whisper = "CTRL", invite = "ALT", friend = "SHIFT", askToJoin = false }
+SocialShortcutsDB = { whisper = "SHIFT", invite = "META", friend = "CTRL", askToJoin = false }
+onLoaded()
+Check("a fallback never takes a key another action holds",
+  pc.db.whisper == "NONE" and pc.db.invite == "ALT" and pc.db.friend == "CTRL")
+SocialShortcutsDB = { whisper = "CTRL", invite = "ALT", friend = "NONE", askToJoin = false }
 onLoaded()
 Check("a saved toggle off stays off", pc.db.askToJoin == false)
 commandRightClick = true
 Check("Windows never reads or changes the Mac option", pc.IsCommandFree() and pc.FreeCommandKey() == nil and commandRightClick)
-Check("Windows defaults: Ctrl whispers, Alt invites, Shift adds a friend",
-  pc.defaults.whisper == "CTRL" and pc.defaults.invite == "ALT" and pc.defaults.friend == "SHIFT")
+Check("Windows defaults: Ctrl whispers, Alt invites, Add Friend starts unbound",
+  pc.defaults.whisper == "CTRL" and pc.defaults.invite == "ALT" and pc.defaults.friend == "NONE")
 
 ns.db = { whisper = "CTRL", invite = "META", friend = "ALT" }
 ns.AssignModifier("whisper", "ALT")
@@ -68,11 +75,11 @@ ns.AssignModifier("invite", "NONE")
 Check("None frees a key without touching the others", ns.db.invite == "NONE" and ns.db.whisper == "ALT" and ns.db.friend == "CTRL")
 ns.AssignModifier("friend", "NONE")
 Check("two actions can both be off", ns.db.invite == "NONE" and ns.db.friend == "NONE")
-ns.AssignModifier("whisper", "SHIFT")
+ns.AssignModifier("whisper", "META")
 Check("a free key moves without a swap",
-  ns.db.whisper == "SHIFT" and ns.db.invite == "NONE" and ns.db.friend == "NONE")
-ns.AssignModifier("whisper", "SHIFT")
-Check("the same key again changes nothing", ns.db.whisper == "SHIFT")
+  ns.db.whisper == "META" and ns.db.invite == "NONE" and ns.db.friend == "NONE")
+ns.AssignModifier("whisper", "META")
+Check("the same key again changes nothing", ns.db.whisper == "META")
 
 print(failures == 0 and "Assign: all checks passed" or ("Assign: " .. failures .. " failed"))
 os.exit(failures == 0 and 0 or 1)

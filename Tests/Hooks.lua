@@ -37,10 +37,12 @@ EventUtil = {
 }
 
 local cover, registryCallbacks = nil, {}
-UIParent = {}
+UIParent = { GetEffectiveScale = function() return 1 end }
 CreateFrame = function()
   cover = { scripts = {}, shown = false }
   function cover:SetFrameStrata() end
+  function cover:EnableMouse() end
+  function cover:SetScale(scale) self.scale = scale end
   function cover:RegisterForClicks() end
   function cover:RegisterEvent() end
   function cover:ClearAllPoints() end
@@ -104,15 +106,34 @@ picked, pickCalls = "whisper", 0
 hooks.SetItemRef("player:Name", nil, "LeftButton")
 Check("a chat whisper Blizzard makes never reaches the gate or its notice", pickCalls == 0 and #runs == 3)
 
-local line = { text = "[Leader]: LFM", GetText = function(self) return self.text end }
-local function Hover(link)
-  registryCallbacks["ChatFrame.OnHyperlinkEnter"](nil, "ChatFrame1", link, "[Leader]", line, 10, 2, 40, 12)
+-- A two-row line at 100, 200 with the name on its bottom row, from x 10 to 50, and the cursor on the name.
+local line = {
+  text = "[Leader]: LFM", scale = 1,
+  GetText = function(self) return self.text end,
+  GetEffectiveScale = function(self) return self.scale end,
+  GetRect = function() return 100, 200, 300, 24 end,
+}
+local cursorX, cursorY = 120, 206
+GetCursorPosition = function() return cursorX * line.scale, cursorY * line.scale end
+local function Hover(link, bottom)
+  registryCallbacks["ChatFrame.OnHyperlinkEnter"](nil, "ChatFrame1", link, "[Leader]", line, 10, bottom or 0, 40, 12)
 end
 
 runs, picked = {}, "invite"
 Hover("player:Leader:12:CHANNEL")
 Check("an invite key over a player name covers exactly that name",
-  cover.shown and cover.anchor.region == line and cover.anchor.x == 10 and cover.width == 40)
+  cover.shown and cover.anchor.region == line and cover.anchor.x == 10 and cover.anchor.y == 0
+    and cover.width == 40 and cover.height == 12)
+Hover("player:Leader:12:CHANNEL", -24)
+Check("bounds read from the line's top left cover the same name", cover.shown and cover.anchor.y == 0)
+cursorX = 200
+Hover("player:Leader:12:CHANNEL")
+Check("a cursor beside the bounds gets no cover", not cover.shown)
+cursorX, line.scale = 120, 2
+Hover("player:Leader:12:CHANNEL")
+Check("a scaled line scales the cover with it", cover.shown and cover.scale == 2)
+line.scale = 1
+Hover("player:Leader:12:CHANNEL")
 registryCallbacks["ChatFrame.OnHyperlinkLeave"]()
 Check("the cover taking the mouse keeps the name", cover.shown)
 cover.scripts.OnClick()
