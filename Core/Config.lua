@@ -86,9 +86,10 @@ end
 -- Modules read this lazily, so it is safe that it stays empty until ADDON_LOADED.
 ns.db = {}
 
--- The chat prefix every addon of this set shares, in Blizzard's own colour object rather than a hex code.
+-- The chat prefix every addon of this set shares: the bracketed title in the gold of Blizzard's own chat links
+-- (ItemRef.lua), the colon and the message in the chat frame's own colour.
 function ns.Print(message)
-  print(YELLOW_FONT_COLOR:WrapTextInColorCode("[" .. ns.title .. "]:") .. " " .. message)
+  print(NORMAL_FONT_COLOR:WrapTextInColorCode("[" .. ns.title .. "]") .. ": " .. message)
 end
 
 -- Exactly one modifier has to be held. Requiring the rest to be up stops one chord from matching two

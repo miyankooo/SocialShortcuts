@@ -6,7 +6,7 @@ IsMacClient = function() return true end
 tInvert = function(t) local inverted = {} for k, v in pairs(t) do inverted[v] = k end return inverted end
 NONE, WHISPER, PARTY_INVITE, ADD_FRIEND = "None", "Whisper", "Invite", "Add Friend"
 MAC_USE_COMMAND_LEFT_CLICK_AS_RIGHT_CLICK = "Command left click as right click"
-YELLOW_FONT_COLOR = { WrapTextInColorCode = function(_, text) return text end }
+NORMAL_FONT_COLOR = { WrapTextInColorCode = function(_, text) return text end }
 local onLoaded
 EventUtil = { ContinueOnAddOnLoaded = function(_, callback) onLoaded = callback end }
 local commandRightClick = true
