@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/miyankooo/SocialShortcuts/compare/v1.0.0...v1.1.0) (2026-11-08)
+
+
+### Features
+
+* Invite Asks to Join sits right under Invite in the settings and explains when it applies ([64a4b87](https://github.com/miyankooo/SocialShortcuts/commit/64a4b87d1ac057be024d7b527ccd14f50cb28798))
+* Shift is no longer a shortcut key, so Shift-click on a name in chat keeps the game's insert name and /who ([64a4b87](https://github.com/miyankooo/SocialShortcuts/commit/64a4b87d1ac057be024d7b527ccd14f50cb28798))
+* Starting keys: Option whispers, Control adds a friend and Command invites on the Mac, Ctrl whispers and Alt invites on Windows ([64a4b87](https://github.com/miyankooo/SocialShortcuts/commit/64a4b87d1ac057be024d7b527ccd14f50cb28798))
+* The settings page explains at the top how the shortcut keys work ([64a4b87](https://github.com/miyankooo/SocialShortcuts/commit/64a4b87d1ac057be024d7b527ccd14f50cb28798))
+
+
+### Bug Fixes
+
+* Shortcut clicks on chat names no longer open a whisper next to the shortcut ([64a4b87](https://github.com/miyankooo/SocialShortcuts/commit/64a4b87d1ac057be024d7b527ccd14f50cb28798))
+
 ## 1.0.0 (2026-11-06)
 
 
