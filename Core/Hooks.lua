@@ -46,9 +46,13 @@ end
 -- While a key bound to Invite or Add Friend is held over a player name in chat, an addon button covers
 -- exactly that name and takes the click. Blizzard never sees it, so no whisper opens, and nothing of
 -- Blizzard's is replaced or written. The whisper key keeps Blizzard's own whisper.
-local hoveredLink
-local linkCover = CreateFrame("Button", nil, UIParent)
-linkCover:SetFrameStrata("DIALOG")
+--
+-- The cover keeps no name of its own: every update and every click reads the name under the cursor from the
+-- chat lines as they are now. A kept name goes stale, because hiding the cover fires its OnLeave
+-- (Blizzard_Menu/Menu.lua) while the cursor is still on the name, and because new chat redraws the lines under
+-- a still cursor, starting with the notice the shortcut's own invite or friend request adds.
+local hoveredLines
+local linkCover = CreateFrame("Button")
 linkCover:EnableMouse(true)
 linkCover:RegisterForClicks("LeftButtonUp")
 linkCover:Hide()
@@ -59,78 +63,78 @@ local function TakesChatClick()
     and not C_ChatInfo.InChatMessagingLockdown()
 end
 
--- The bounds place the link inside its line, but Blizzard's own code reads them from the line's bottom left
--- (GameDialogDefs.lua) and from its top left (UIPanelTemplatesShared.lua). The cursor is on the link while
--- it is hovered, so the cover takes the reading that holds the cursor. With neither, it stays hidden, since a
--- cover beside the cursor would take a click meant for something else. Line geometry turns secret where the
--- client restricts it, so it is checked before any arithmetic.
-local function LinkBottom(link)
-  local region = link.region
-  local scale = region:GetEffectiveScale()
-  local left, bottom, _, height = region:GetRect()
-  if not ns.CanAccess(scale) or not ns.CanAccess(left) or not left then return end
+-- Spans and areas are read the way Blizzard's own text selection reads them (ScrollingMessageFrame.lua): a
+-- span runs between positions in the line's raw text, and its screen area is relative to the line's bottom
+-- left. Geometry and text turn secret where the client restricts them, so each is checked before use.
+local function PlayerLinkOnLine(line, x, y)
+  local left, bottom, width, height = line:GetRect()
+  if not ns.CanAccess(left) or not left then return end
+  x, y = x - left, y - bottom
+  if x < 0 or x > width or y < 0 or y > height then return end
 
-  local x, y = GetCursorPosition()
-  x, y = x / scale - left, y / scale - bottom
-  if x < link.left or x > link.left + link.width then return end
-
-  for _, linkBottom in ipairs({ link.bottom, height + link.bottom }) do
-    if y >= linkBottom and y <= linkBottom + link.height then return linkBottom end
+  local text = line:GetText()
+  if not ns.CanAccess(text) or not text then return end
+  for first, link, last in text:gmatch("()|H(.-)|h.-|h()") do
+    local name = PlayerNameFromLink(link)
+    local areas = name and line:CalculateScreenAreaFromCharacterSpan(first, last)
+    for _, area in ipairs(ns.CanAccess(areas) and areas or {}) do
+      if x >= area.left and x <= area.left + area.width and y >= area.bottom and y <= area.bottom + area.height then
+        return name, area
+      end
+    end
   end
 end
 
+-- Every line of a chat window is a font string in one container. Hidden ones, faded or pooled, show no name.
+local function PlayerLinkAt(lines)
+  local scale = lines:GetEffectiveScale()
+  if not ns.CanAccess(scale) then return end
+
+  local x, y = GetCursorPosition()
+  for _, line in ipairs({ lines:GetRegions() }) do
+    if line:IsObjectType("FontString") and line:IsVisible() then
+      local name, area = PlayerLinkOnLine(line, x / scale, y / scale)
+      if name then return name, line, area end
+    end
+  end
+end
+
+-- As a child of the line container the cover sits right above the lines and under any window on top of them,
+-- so it never takes a click meant for that window, and it shares their scale. Parenting writes no Lua value of
+-- Blizzard's, so it taints nothing. A chat window set to uninteractable turns its links off
+-- (FloatingChatFrame.lua), so clicks pass through it, and the cover then stays away too.
 local function UpdateLinkCover()
-  local link = hoveredLink
-  local linkBottom = link and TakesChatClick() and LinkBottom(link)
-  if not linkBottom then
+  local name, line, area
+  if hoveredLines and hoveredLines:GetParent():GetHyperlinksEnabled() and TakesChatClick() then
+    name, line, area = PlayerLinkAt(hoveredLines)
+  end
+  if not name then
     linkCover:Hide()
     return
   end
 
-  -- The cover sits on UIParent but measures in the line's units, so it takes the line's scale.
-  linkCover:SetScale(link.region:GetEffectiveScale() / UIParent:GetEffectiveScale())
+  if linkCover:GetParent() ~= hoveredLines then linkCover:SetParent(hoveredLines) end
   linkCover:ClearAllPoints()
-  linkCover:SetPoint("BOTTOMLEFT", link.region, "BOTTOMLEFT", link.left, linkBottom)
-  linkCover:SetSize(link.width, link.height)
+  linkCover:SetPoint("BOTTOMLEFT", line, "BOTTOMLEFT", area.left, area.bottom)
+  linkCover:SetSize(area.width, area.height)
   linkCover:Show()
 end
 
--- A link from restricted content is a secret and is never read. The line's text is kept, so a click after
--- new chat has redrawn the line never acts on a name that is no longer there.
-local function OnChatLinkEnter(chatFrame, link, _, region, left, bottom, width, height)
-  local name = ns.CanAccess(link) and type(link) == "string" and PlayerNameFromLink(link)
-  local text = name and region:GetText()
-  hoveredLink = name and ns.CanAccess(text) and {
-    chatFrame = chatFrame, name = name, region = region, text = text,
-    left = left, bottom = bottom, width = width, height = height,
-  } or nil
+-- The hovered link only names the chat window. Leaving it needs no handler, since the next update finds no
+-- name under the cursor.
+local function OnChatLinkEnter(region)
+  hoveredLines = region:GetParent()
   UpdateLinkCover()
 end
 
--- The cover itself takes the mouse from the chat line, which counts as leaving the link, so the link is
--- kept while the cover shows and dropped when the cover is left.
-local function OnChatLinkLeave()
-  if not linkCover:IsShown() then hoveredLink = nil end
-end
-
-linkCover:SetScript("OnLeave", function()
-  hoveredLink = nil
-  linkCover:Hide()
-end)
-
 linkCover:SetScript("OnClick", function()
-  local link = hoveredLink
-  local current = link and link.region:GetText()
-  if not link or not ns.CanAccess(current) or current ~= link.text then
-    hoveredLink = nil
-    linkCover:Hide()
-    return
-  end
-
-  local action = ns.PickAction()
-  if action then ns.RunAction(action, link.name, link.chatFrame) end
+  local name = PlayerLinkAt(hoveredLines)
+  local action = name and ns.PickAction()
+  if action then ns.RunAction(action, name) end
 end)
 
+-- While it shows, the cover follows redraws and the cursor. While hidden, a key press brings it back.
+linkCover:SetScript("OnUpdate", UpdateLinkCover)
 linkCover:RegisterEvent("MODIFIER_STATE_CHANGED")
 linkCover:SetScript("OnEvent", UpdateLinkCover)
 
@@ -296,9 +300,8 @@ end
 -- Hooks go in at file load rather than login, so no frame the client sets up in between is missed.
 hooksecurefunc("SetItemRef", OnItemRef)
 
--- Every chat window reports link hovers through these two events (ChatFrame.lua).
-EventRegistry:RegisterCallback("ChatFrame.OnHyperlinkEnter", function(_, ...) OnChatLinkEnter(...) end, ns)
-EventRegistry:RegisterCallback("ChatFrame.OnHyperlinkLeave", OnChatLinkLeave, ns)
+-- Every chat window reports link hovers through this event, with the hovered line (ChatFrame.lua).
+EventRegistry:RegisterCallback("ChatFrame.OnHyperlinkEnter", function(_, _, _, _, region) OnChatLinkEnter(region) end, ns)
 
 HookUnitFrames()
 
@@ -321,12 +324,9 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_CompactRaidFrames", function()
 end)
 
 -- The guild roster is the Communities member list, and every row click funnels through one call. The
--- Communities chat is a plain message frame without the chat window events, so its own link scripts are
--- hooked, and it has no chat frame to pass on (CommunitiesChatFrame.xml).
+-- Communities chat is a plain message frame without the chat window events, so its own link script is
+-- hooked (CommunitiesChatFrame.xml).
 EventUtil.ContinueOnAddOnLoaded("Blizzard_Communities", function()
   hooksecurefunc(CommunitiesFrame.MemberList, "OnClubMemberButtonClicked", OnGuildMemberClick)
-
-  local messageFrame = CommunitiesFrame.Chat.MessageFrame
-  messageFrame:HookScript("OnHyperlinkEnter", function(_, ...) OnChatLinkEnter(nil, ...) end)
-  messageFrame:HookScript("OnHyperlinkLeave", OnChatLinkLeave)
+  CommunitiesFrame.Chat.MessageFrame:HookScript("OnHyperlinkEnter", function(_, _, _, region) OnChatLinkEnter(region) end)
 end)

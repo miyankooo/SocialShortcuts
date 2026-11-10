@@ -37,19 +37,22 @@ EventUtil = {
 }
 
 local cover, registryCallbacks = nil, {}
-UIParent = { GetEffectiveScale = function() return 1 end }
 CreateFrame = function()
   cover = { scripts = {}, shown = false }
-  function cover:SetFrameStrata() end
   function cover:EnableMouse() end
-  function cover:SetScale(scale) self.scale = scale end
   function cover:RegisterForClicks() end
   function cover:RegisterEvent() end
+  function cover:SetParent(parent) self.parent = parent end
+  function cover:GetParent() return self.parent end
   function cover:ClearAllPoints() end
   function cover:SetPoint(_, region, _, x, y) self.anchor = { region = region, x = x, y = y } end
   function cover:SetSize(width, height) self.width, self.height = width, height end
   function cover:Show() self.shown = true end
-  function cover:Hide() self.shown = false end
+  -- The client fires OnLeave on a hidden frame under the cursor (Blizzard_Menu/Menu.lua).
+  function cover:Hide()
+    if self.shown and self.scripts.OnLeave then self.scripts.OnLeave(self) end
+    self.shown = false
+  end
   function cover:IsShown() return self.shown end
   function cover:SetScript(script, handler) self.scripts[script] = handler end
   return cover
@@ -58,6 +61,7 @@ EventRegistry = { RegisterCallback = function(_, event, callback) registryCallba
 local chatLink, lockdown = false, false
 C_ChatInfo = { InChatMessagingLockdown = function() return lockdown end }
 
+SECRET = {}
 local picked, pickCalls = nil, 0
 IsModifiedClick = function() return chatLink end
 local ns = {
@@ -66,7 +70,7 @@ local ns = {
   RunAction = function(action, name, _, grouped)
     table.insert(runs, action .. " " .. name .. (grouped == nil and "" or grouped and " grouped" or " solo"))
   end,
-  CanAccess = function() return true end,
+  CanAccess = function(value) return value ~= SECRET end,
   AsksToJoin = function() return asksToJoin end,
 }
 assert(loadfile("Core/Hooks.lua"))("SocialShortcuts", ns)
@@ -106,68 +110,102 @@ picked, pickCalls = "whisper", 0
 hooks.SetItemRef("player:Name", nil, "LeftButton")
 Check("a chat whisper Blizzard makes never reaches the gate or its notice", pickCalls == 0 and #runs == 3)
 
--- A two-row line at 100, 200 with the name on its bottom row, from x 10 to 50, and the cursor on the name.
-local line = {
-  text = "[Leader]: LFM", scale = 1,
-  GetText = function(self) return self.text end,
-  GetEffectiveScale = function(self) return self.scale end,
-  GetRect = function() return 100, 200, 300, 24 end,
-}
-local cursorX, cursorY = 120, 206
-GetCursorPosition = function() return cursorX * line.scale, cursorY * line.scale end
-local function Hover(link, bottom)
-  registryCallbacks["ChatFrame.OnHyperlinkEnter"](nil, "ChatFrame1", link, "[Leader]", line, 10, bottom or 0, 40, 12)
+-- Two chat lines in one container, one unit per raw text position, so a span's area runs from its first
+-- position to its last, as CalculateScreenAreaFromCharacterSpan measures it from the line's bottom left.
+local leaderText = "|Hplayer:Leader:12:CHANNEL|h[Leader]|h: LFM"
+local function NewLine(text, bottom)
+  return {
+    text = text, visible = true,
+    IsObjectType = function(_, objectType) return objectType == "FontString" end,
+    IsVisible = function(self) return self.visible end,
+    GetRect = function() return 100, bottom, 300, 12 end,
+    GetText = function(self) return self.text end,
+    CalculateScreenAreaFromCharacterSpan = function(_, first, last)
+      return { { left = first, bottom = 0, width = last - first, height = 12 } }
+    end,
+  }
 end
+local line, lowerLine = NewLine(leaderText, 200), NewLine("|Hplayer:Other:13:CHANNEL|h[Other]|h: hi", 186)
+local highlight = { IsObjectType = function() return false end }
+local window = { hyperlinks = true }
+function window:GetHyperlinksEnabled() return self.hyperlinks end
+local lines = { scale = 1 }
+function lines:GetParent() return window end
+function lines:GetEffectiveScale() return self.scale end
+function lines:GetRegions() return highlight, lowerLine, line end
+line.GetParent = function() return lines end
+
+local cursorX, cursorY = 120, 206
+GetCursorPosition = function() return cursorX * lines.scale, cursorY * lines.scale end
+local function Hover() registryCallbacks["ChatFrame.OnHyperlinkEnter"](ns, "ChatFrame1", "player:Leader", "[Leader]", line) end
+local function Update() cover.scripts.OnUpdate(cover, 0) end
 
 runs, picked = {}, "invite"
-Hover("player:Leader:12:CHANNEL")
-Check("an invite key over a player name covers exactly that name",
-  cover.shown and cover.anchor.region == line and cover.anchor.x == 10 and cover.anchor.y == 0
-    and cover.width == 40 and cover.height == 12)
-Hover("player:Leader:12:CHANNEL", -24)
-Check("bounds read from the line's top left cover the same name", cover.shown and cover.anchor.y == 0)
+Hover()
+Check("an invite key over a player name covers exactly that name, right above its line",
+  cover.shown and cover.parent == lines and cover.anchor.region == line and cover.anchor.x == 1
+    and cover.anchor.y == 0 and cover.width == #leaderText - #": LFM" and cover.height == 12)
 cursorX = 200
-Hover("player:Leader:12:CHANNEL")
-Check("a cursor beside the bounds gets no cover", not cover.shown)
-cursorX, line.scale = 120, 2
-Hover("player:Leader:12:CHANNEL")
-Check("a scaled line scales the cover with it", cover.shown and cover.scale == 2)
-line.scale = 1
-Hover("player:Leader:12:CHANNEL")
-registryCallbacks["ChatFrame.OnHyperlinkLeave"]()
-Check("the cover taking the mouse keeps the name", cover.shown)
+Hover()
+Check("a cursor beside the name gets no cover", not cover.shown)
+cursorX, lines.scale = 120, 2
+Hover()
+Check("a scaled window reads the cursor in its own scale", cover.shown)
+lines.scale = 1
+
 cover.scripts.OnClick()
 Check("a click on the cover runs the action instead of Blizzard's whisper", runs[1] == "invite Leader")
 
-line.text = "[Other]: hi"
-cover.scripts.OnClick()
-Check("a redrawn line drops the click and the cover", #runs == 1 and not cover.shown)
-line.text = "[Leader]: LFM"
-
-picked = "whisper"
-Hover("player:Leader:12:CHANNEL")
-Check("the whisper key leaves the click to Blizzard", not cover.shown)
-picked, chatLink = "friend", true
-Hover("player:Leader:12:CHANNEL")
-Check("the CHATLINK key keeps Blizzard's insert-name or /who", not cover.shown)
-chatLink, picked = false, "invite"
-Hover("item:6948")
-Check("an item link is never covered", not cover.shown)
-lockdown = true
-Hover("player:Leader:12:CHANNEL")
-Check("lockdown leaves the click to Blizzard", not cover.shown)
-lockdown = false
-
-Hover("player:Leader:12:CHANNEL")
 picked = nil
 cover.scripts.OnEvent()
 Check("letting go of the key removes the cover", not cover.shown)
 picked = "invite"
 cover.scripts.OnEvent()
-Check("pressing it again over the name brings the cover back", cover.shown)
-cover.scripts.OnLeave()
+Check("pressing it again over the same name brings the cover back, though hiding fired OnLeave", cover.shown)
+
+line.text = lowerLine.text
+Update()
+cover.scripts.OnClick()
+Check("a line redrawn under a still cursor acts on the name it shows now", runs[2] == "invite Other")
+line.text = "plain chat"
+Update()
+Check("a redraw that leaves no name under the cursor removes the cover", not cover.shown)
+cover.scripts.OnClick()
+Check("and a click then acts on nothing", #runs == 2)
+line.text = leaderText
+
+cursorY = 190
 cover.scripts.OnEvent()
-Check("leaving the name drops it", not cover.shown)
+Check("the cursor on another line of the window gets that line's name", cover.shown and cover.anchor.region == lowerLine)
+cursorY = 206
+line.visible = false
+cover.scripts.OnEvent()
+Check("a hidden line under the cursor shows no name", not cover.shown)
+line.visible = true
+window.hyperlinks = false
+cover.scripts.OnEvent()
+Check("an uninteractable chat window gets no cover", not cover.shown)
+window.hyperlinks = true
+line.text = SECRET
+cover.scripts.OnEvent()
+Check("a secret line is never read", not cover.shown)
+line.text = leaderText
+
+picked = "whisper"
+Hover()
+Check("the whisper key leaves the click to Blizzard", not cover.shown)
+picked, chatLink = "friend", true
+Hover()
+Check("the CHATLINK key keeps Blizzard's insert-name or /who", not cover.shown)
+chatLink, picked = false, "invite"
+line.text = "|Hitem:6948|h[Hearthstone]|h"
+Hover()
+Check("an item link is never covered", not cover.shown)
+line.text = leaderText
+lockdown = true
+Hover()
+Check("lockdown leaves the click to Blizzard", not cover.shown)
+lockdown = false
 
 print(failures == 0 and "Hooks: all checks passed" or ("Hooks: " .. failures .. " failed"))
 os.exit(failures == 0 and 0 or 1)
