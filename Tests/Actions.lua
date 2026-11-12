@@ -55,6 +55,13 @@ onEvent(nil, "CHAT_MSG_SYSTEM", "Leader is already in a group.")
 Check("one invite asks to join once", #calls == 2)
 
 calls = {}
+ns.RunAction("invite", "Leader-Realm")
+onEvent(nil, "CHAT_MSG_SYSTEM", "Stranger is already in a group.")
+Check("another player's answer asks nothing", #calls == 1)
+onEvent(nil, "CHAT_MSG_SYSTEM", "leader is already in a group.")
+Check("the answer may drop the realm and change case", calls[2] == "request Leader-Realm")
+
+calls = {}
 ns.RunAction("invite", "Known")
 Check("an answer inside the invite call still asks to join", calls[2] == "request Known")
 

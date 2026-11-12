@@ -166,7 +166,8 @@ local function LoadSettings()
 
   for key, value in pairs(db) do
     local default = ns.defaults[key]
-    local valid = type(default) == "boolean" and type(value) == "boolean" or knownTokens[value]
+    local valid
+    if type(default) == "boolean" then valid = type(value) == "boolean" else valid = knownTokens[value] end
     if default == nil or not valid then db[key] = nil end
   end
   for _, action in ipairs(ns.actions) do

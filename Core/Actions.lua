@@ -24,7 +24,13 @@ function ns.AsksToJoin()
 end
 
 local escaped = ERR_ALREADY_IN_GROUP_S:gsub("[%(%)%.%+%-%*%?%[%]%^%$]", "%%%0")
-local alreadyInGroup = "^" .. escaped:gsub("%%s", ".+") .. "$"
+local alreadyInGroup = "^" .. escaped:gsub("%%s", "(.+)") .. "$"
+
+-- The answer names the player as the server knows them, with or without realm or surname, so only the first
+-- part is compared. Another player's answer, such as one to an invite from Blizzard's menu, asks nothing.
+local function FirstName(name)
+  return name:match("^[^%s%-]*"):lower()
+end
 
 -- The answer comes as a system chat line or an error message. A line kept from restricted content can be
 -- secret, so it is checked before the match.
@@ -36,7 +42,8 @@ local function OnPartyResult(_, event, ...)
   end
 
   local message = event == "UI_ERROR_MESSAGE" and select(2, ...) or ...
-  if ns.CanAccess(message) and type(message) == "string" and message:match(alreadyInGroup) then
+  local answered = ns.CanAccess(message) and type(message) == "string" and message:match(alreadyInGroup)
+  if answered and FirstName(answered) == FirstName(pendingJoin.name) then
     local name = pendingJoin.name
     pendingJoin = nil
     C_PartyInfo.RequestInviteFromUnit(name)

@@ -63,6 +63,9 @@ Check("a fallback never takes a key another action holds",
 SocialShortcutsDB = { whisper = "CTRL", invite = "ALT", friend = "NONE", askToJoin = false }
 onLoaded()
 Check("a saved toggle off stays off", pc.db.askToJoin == false)
+SocialShortcutsDB = { whisper = "CTRL", invite = "ALT", friend = "NONE", askToJoin = "ALT" }
+onLoaded()
+Check("a key saved as the toggle falls back to on", pc.db.askToJoin == true)
 commandRightClick = true
 Check("Windows never reads or changes the Mac option", pc.IsCommandFree() and pc.FreeCommandKey() == nil and commandRightClick)
 Check("Windows defaults: Ctrl whispers, Alt invites, Add Friend starts unbound",
