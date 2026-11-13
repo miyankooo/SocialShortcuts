@@ -18,6 +18,8 @@ A WoW Forever addon that lets you whisper, invite, ask to join or befriend a pla
 2. To change the keys, type `/ssc` or pick Social Shortcuts in the addon menu.
 3. Pick a key for each action, or None to turn it off. Defaults restores the starting keys.
 
+Commands: `/ssc`, `/ssc intro` and `/ssc help`.
+
 Starting keys:
 
 - macOS: Option whispers, Control adds a friend, Command invites.
