@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.1](https://github.com/miyankooo/SocialShortcuts/compare/v1.3.0...v1.3.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* Add Friend sends a WoW Friend request where character friends are turned off ([286e461](https://github.com/miyankooo/SocialShortcuts/commit/286e461bf1d2a7694a3eaf16bf7c537f7d8355ca))
+* Invite and Add Friend clicks on a chat name no longer open a whisper box ([cad8d14](https://github.com/miyankooo/SocialShortcuts/commit/cad8d144b322a668c9ad0baa7f250e88beb33b2b))
+* Invite and Add Friend clicks on a chat name switch the window's links off, so no whisper opens ([05a648f](https://github.com/miyankooo/SocialShortcuts/commit/05a648f541ec9598e567337bc7545bc12c5f689f))
+
 ## [1.3.0](https://github.com/miyankooo/SocialShortcuts/compare/v1.2.0...v1.3.0) (2026-11-13)
 
 
