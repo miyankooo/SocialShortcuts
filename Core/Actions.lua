@@ -17,7 +17,8 @@ end
 -- list carries no group, so the invite goes out, and when the client answers that the player is already in
 -- a group, the join request follows for the same name.
 local JOIN_WINDOW = 3
-local pendingJoin
+local pendingName, pendingTime
+local resultFrame = CreateFrame("Frame")
 
 function ns.AsksToJoin()
   return ns.db.askToJoin and not IsInGroup()
@@ -32,27 +33,35 @@ local function FirstName(name)
   return name:match("^[^%s%-]*"):lower()
 end
 
--- The answer comes as a system chat line or an error message. A line kept from restricted content can be
--- secret, so it is checked before the match.
+-- The answer comes as a system chat line or an error message. Both events are registered only while an invite
+-- waits for its answer, since error messages are frequent in combat. A nil name ends the wait.
+local function WaitForAnswer(name)
+  pendingName, pendingTime = name, GetTime()
+  if name then
+    resultFrame:RegisterEvent("CHAT_MSG_SYSTEM")
+    resultFrame:RegisterEvent("UI_ERROR_MESSAGE")
+  else
+    resultFrame:UnregisterAllEvents()
+  end
+end
+
+-- The first event after the window ends the wait. A line kept from restricted content can be secret, so it
+-- is checked before the match.
 local function OnPartyResult(_, event, ...)
-  if not pendingJoin then return end
-  if GetTime() - pendingJoin.time > JOIN_WINDOW then
-    pendingJoin = nil
+  if GetTime() - pendingTime > JOIN_WINDOW then
+    WaitForAnswer(nil)
     return
   end
 
   local message = event == "UI_ERROR_MESSAGE" and select(2, ...) or ...
   local answered = ns.CanAccess(message) and type(message) == "string" and message:match(alreadyInGroup)
-  if answered and FirstName(answered) == FirstName(pendingJoin.name) then
-    local name = pendingJoin.name
-    pendingJoin = nil
+  if answered and FirstName(answered) == FirstName(pendingName) then
+    local name = pendingName
+    WaitForAnswer(nil)
     C_PartyInfo.RequestInviteFromUnit(name)
   end
 end
 
-local resultFrame = CreateFrame("Frame")
-resultFrame:RegisterEvent("CHAT_MSG_SYSTEM")
-resultFrame:RegisterEvent("UI_ERROR_MESSAGE")
 resultFrame:SetScript("OnEvent", OnPartyResult)
 
 -- In a group without lead or assist, Blizzard's menu shows Suggest Invite (LFGUtil.lua) and still calls
@@ -75,9 +84,9 @@ local function Invite(name, grouped)
     return
   end
 
-  -- Marked before the call, because the client can answer at once, inside InviteUnit, when it already knows
-  -- the player is grouped.
-  pendingJoin = asksToJoin and grouped == nil and { name = name, time = GetTime() } or nil
+  -- The wait starts before the call, because the client can answer at once, inside InviteUnit, when it already
+  -- knows the player is grouped.
+  WaitForAnswer(asksToJoin and grouped == nil and name or nil)
   C_PartyInfo.InviteUnit(name)
 end
 
