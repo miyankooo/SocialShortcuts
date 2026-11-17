@@ -44,18 +44,22 @@ local function OnItemRef(link, _, button, chatFrame)
 end
 
 -- While a key bound to Invite or Add Friend is held over a player name in chat, an addon button covers that
--- name and takes the click. Blizzard never sees it, so no whisper opens, and nothing of Blizzard's is replaced
--- or written. The whisper key keeps Blizzard's own whisper.
+-- name and takes the click, and the chat window's links are off, so Blizzard never sees the click and no
+-- whisper opens. The whisper key keeps Blizzard's own whisper.
 --
 -- The client itself says which name is under the cursor: a chat window reports the hovered link, its line and
 -- the link's box when the cursor enters it, and reports when it leaves (ChatFrame.lua). The cover keeps that
 -- report and works nothing out from the text. It only checks that the line still shows what it showed, since
 -- new chat redraws the lines under a still cursor.
 --
--- The cover sits on UIParent in DIALOG, placed in screen coordinates, and takes clicks by being shown. Inside
--- the chat window, in the window's strata a level above its lines, and shown with its mouse switched on later,
--- the line under the cursor kept the click in game. A second frame watches while the cover is hidden.
+-- The cover sits on UIParent in DIALOG, placed in screen coordinates, and takes clicks by being shown. A second
+-- frame watches while the cover is hidden. In game a chat link took the click even with the cover shown on top
+-- of it as the mouse focus, so the cover alone cannot stop the whisper. The window's links are switched off for
+-- as long as the cover shows, the way Blizzard switches them off for an uninteractable window
+-- (FloatingChatFrame.lua). That is widget state, no Lua value of Blizzard's, so it taints nothing. Only links the
+-- addon switched off are switched back on.
 local hovered = {} -- the reported link: active, name, line, text, left, bottom, width, height
+local mutedWindow -- the chat window whose links are off while the cover shows
 local box = {} -- the cover's box on screen in cursor units: left, bottom, right, top
 local linkWatch = CreateFrame("Frame")
 linkWatch:Hide()
@@ -113,27 +117,45 @@ local function PlaceCover(x, y)
   return true
 end
 
+local function ArmCover(arm)
+  if arm == linkCover:IsShown() then return end
+
+  linkCover:SetShown(arm)
+  if arm then
+    local window = hovered.line:GetParent():GetParent()
+    if window:GetHyperlinksEnabled() then
+      mutedWindow = window
+      window:SetHyperlinksEnabled(false)
+    end
+  elseif mutedWindow then
+    -- Links switched back on under the cursor can report it at once, so the window is let go first.
+    local window = mutedWindow
+    mutedWindow = nil
+    window:SetHyperlinksEnabled(true)
+  end
+end
+
 -- Runs every frame from the report of a player link until the cursor is off it. The keys are read here, so a
--- key pressed while the cursor rests on the name needs no key event. While the cover shows it holds the mouse,
--- so the client reports the link as left, and the cover's own box says the cursor is still on the name. The box
+-- key pressed while the cursor rests on the name needs no key event. While the cover shows, the client reports
+-- the link as left, and the cover's own box says the cursor is still on the name. The box
 -- is kept after the key is let go, so pressing it again without moving the cursor takes the click again.
 local function UpdateLinkCover()
   local x, y = GetCursorPosition()
   if not hovered.active and not InBox(x, y) then
     box.left = nil
-    linkCover:Hide()
     linkWatch:Hide()
+    ArmCover(false)
     return
   end
 
-  local takes = TakesChatClick() and LinkStillThere() and (box.left ~= nil or PlaceCover(x, y)) or false
-  if takes ~= linkCover:IsShown() then linkCover:SetShown(takes) end
+  ArmCover(TakesChatClick() and LinkStillThere() and (box.left ~= nil or PlaceCover(x, y)) or false)
 end
 
--- Every report starts over: the box of an earlier link never serves a new one. A link from restricted content
--- is a secret and is never read, and neither are a secret line or box.
+-- Every report starts over: the box and the switched-off links of an earlier link never serve a new one. A link
+-- from restricted content is a secret and is never read, and neither are a secret line or box.
 local function OnChatLinkEnter(link, line, left, bottom, width, height)
   box.left = nil
+  ArmCover(false)
   local name = ns.CanAccess(link) and type(link) == "string" and PlayerNameFromLink(link)
   local text = name and line:GetText()
   hovered.active = name and ns.CanAccess(text) and ns.CanAccess(left) and true or false
@@ -153,6 +175,7 @@ linkCover:SetScript("OnClick", function()
   local action = LinkStillThere() and ns.PickAction()
   if action then ns.RunAction(action, hovered.name) end
 end)
+
 
 -- Unit frames ------------------------------------------------------------------------------------
 

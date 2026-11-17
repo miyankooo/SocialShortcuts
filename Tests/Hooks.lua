@@ -112,7 +112,11 @@ Check("a chat whisper Blizzard makes never reaches the gate or its notice", pick
 -- inside the line: 50 by 12, 10 from the left. The cursor rests on it.
 local leaderLink, leaderText = "player:Leader:12:CHANNEL", "|Hplayer:Leader:12:CHANNEL|h[Leader]|h: LFM"
 local lineScale = 1
-local lines = { GetEffectiveScale = function() return lineScale end }
+-- The chat window holds the line container, which holds the lines.
+local window = { hyperlinks = true }
+function window:GetHyperlinksEnabled() return self.hyperlinks end
+function window:SetHyperlinksEnabled(enabled) self.hyperlinks = enabled end
+local lines = { GetEffectiveScale = function() return lineScale end, GetParent = function() return window end }
 local line = { text = leaderText, visible = true }
 function line:GetParent() return lines end
 function line:IsVisible() return self.visible end
@@ -135,6 +139,7 @@ Check("a player name the client reports starts the watch, and clicks still pass 
 picked = "invite"
 Update()
 Check("a key pressed while the cursor rests on the name shows the cover, with no key event", cover.shown)
+Check("and switches the window's links off, so the link cannot take the click", window.hyperlinks == false)
 Check("the cover lies on the box the client reported, in screen coordinates less UIParent's origin",
   cover.anchor.region == UIParent and cover.anchor.x == 210 and cover.anchor.y == 380
     and cover.width == 100 and cover.height == 24)
@@ -150,7 +155,8 @@ Check("a click on the cover runs the action instead of Blizzard's whisper", runs
 
 picked = nil
 Update()
-Check("letting go of the key hides the cover, so clicks pass through again", watch.shown and not cover.shown)
+Check("letting go of the key hides the cover and switches the links back on", watch.shown and not cover.shown
+  and window.hyperlinks == true)
 picked = "invite"
 Update()
 Check("pressing it again without moving takes the click again, with no new report",
@@ -172,7 +178,8 @@ Update()
 Leave()
 cursorX = 200
 Update()
-Check("a cursor off the name ends the watch", not watch.shown and not cover.shown)
+Check("a cursor off the name ends the watch and leaves the links on", not watch.shown and not cover.shown
+  and window.hyperlinks == true)
 cursorX = 120
 
 Enter(leaderLink, 10, -12)
@@ -188,10 +195,31 @@ Update()
 Check("a scaled window is measured in its own scale", cover.shown and cover.anchor.x == 430 and cover.width == 200)
 lineScale = 1
 
+Enter()
+Update()
+Check("armed again before another report", cover.shown and window.hyperlinks == false)
+local otherWindow = { hyperlinks = true, GetHyperlinksEnabled = window.GetHyperlinksEnabled,
+  SetHyperlinksEnabled = window.SetHyperlinksEnabled }
+lines.GetParent = function() return otherWindow end
+Enter()
+Check("a report from another window gives the first window its links back", window.hyperlinks == true
+  and not cover.shown)
+Update()
+Check("and the new window's links go off while the cover shows", cover.shown and otherWindow.hyperlinks == false)
+lines.GetParent = function() return window end
+Enter()
+Check("its links come back too", otherWindow.hyperlinks == true)
+window.hyperlinks = false
+Update()
+picked = nil
+Update()
+Check("links the addon did not switch off stay off", window.hyperlinks == false)
+window.hyperlinks, picked = true, "invite"
+
 picked = "whisper"
 Enter()
 Update()
-Check("the whisper key leaves the click to Blizzard", watch.shown and not cover.shown)
+Check("the whisper key leaves the click to Blizzard", watch.shown and not cover.shown and window.hyperlinks == true)
 picked, chatLink = "friend", true
 Update()
 Check("the CHATLINK key keeps Blizzard's insert-name or /who", not cover.shown)
