@@ -1,14 +1,16 @@
 local _, ns = ...
 
--- Character friends can be switched off, and Blizzard then hides its own add-friend entries
--- (UnitPopupSharedButtonMixins.lua).
-local function AddCharacterFriend(name)
-  if not C_FriendList.IsLegacyFriendSystemEnabled() then
-    ns.Print("Character friends are turned off on this client.")
-    return
+-- Adds a friend by name the way Blizzard's own Add Friend dialog does (AddFriendTemplates.lua,
+-- AddFriendFrame_Accept): a WoW Friend request where the client uses WoW Friends, the character friends list
+-- where it still has one, and Blizzard's own error where it has neither.
+local function AddFriend(name)
+  if C_BattleNet.AreTitleFriendsEnabled() then
+    C_BattleNet.SendTitleFriendInviteByName(name)
+  elseif C_FriendList.IsLegacyFriendSystemEnabled() then
+    C_FriendList.AddFriend(name)
+  else
+    UIErrorsFrame:AddExternalErrorMessage(ERR_SYSTEM_DISABLED)
   end
-
-  C_FriendList.AddFriend(name)
 end
 
 -- Invite asks to join instead, like Blizzard's own menu entry turns into Request to Join Group while you
@@ -104,7 +106,7 @@ function ns.RunAction(action, name, chatFrame, grouped)
   elseif action == "invite" then
     Invite(name, grouped)
   elseif action == "friend" then
-    AddCharacterFriend(name)
+    AddFriend(name)
   end
 end
 

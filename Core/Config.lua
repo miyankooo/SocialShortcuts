@@ -33,7 +33,10 @@ local knownTokens = tInvert(ns.modifierOrder)
 -- below it in the settings.
 ns.actions = {
   { key = "whisper", label = WHISPER, verb = "whisper", help = "Open a whisper to the clicked player." },
-  { key = "friend", label = ADD_FRIEND, verb = "add as a friend", help = "Add the clicked player to your friends list." },
+  {
+    key = "friend", label = ADD_FRIEND, verb = "add as a friend",
+    help = "Add the clicked player as a friend. Where the game uses WoW Friends, they get a friend request.",
+  },
   {
     key = "invite", label = PARTY_INVITE, verb = "invite",
     help = "Invite the clicked player to your group. In a group you don't lead, it suggests them to your leader instead.",

@@ -16,10 +16,17 @@ C_PartyInfo = {
   RequestInviteFromUnit = function(name) table.insert(calls, "request " .. name) end,
   IsPartyFull = function() return partyFull end,
 }
+-- Which friends the client has: WoW Friends, the character friends list, or neither.
+local wowFriends, characterFriends = false, true
 C_FriendList = {
-  IsLegacyFriendSystemEnabled = function() return true end,
+  IsLegacyFriendSystemEnabled = function() return characterFriends end,
   AddFriend = function(name) table.insert(calls, "friend " .. name) end,
 }
+C_BattleNet = {
+  AreTitleFriendsEnabled = function() return wowFriends end,
+  SendTitleFriendInviteByName = function(name) table.insert(calls, "wow friend " .. name) end,
+}
+ERR_SYSTEM_DISABLED = "This system is currently disabled."
 
 ERR_ALREADY_IN_GROUP_S = "%s is already in a group."
 GetTime = function() return now end
@@ -52,6 +59,15 @@ Check("each action makes Blizzard's own call", calls[1] == "tell Name" and calls
 Check("an invite by name waits for the answer events", registered.CHAT_MSG_SYSTEM and registered.UI_ERROR_MESSAGE)
 ns.RunAction("invite", nil)
 Check("a missing name calls nothing", #calls == 3)
+
+calls, wowFriends = {}, true
+ns.RunAction("friend", "Name")
+Check("where the client uses WoW Friends, Add Friend sends a WoW Friend request", #calls == 1 and calls[1] == "wow friend Name")
+calls, wowFriends, characterFriends = {}, false, false
+ns.RunAction("friend", "Name")
+Check("with no friends system at all, Add Friend shows Blizzard's own error and calls nothing",
+  #calls == 0 and notices[1] == "This system is currently disabled.")
+notices, characterFriends = {}, true
 
 calls = {}
 ns.RunAction("invite", "Leader")
