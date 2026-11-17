@@ -9,6 +9,7 @@ A WoW Forever addon that lets you whisper, invite, ask to join or befriend a pla
 - Whisper, Add Friend and Invite, each on its own modifier key.
 - Works on names in chat, unit frames, the friends list, the Who list, the guild roster and Group Finder.
 - Battle.net friends get a Battle.net whisper, and Invite reaches the character they play.
+- Add Friend sends the clicked character a WoW Friend request, like the game's own Add Friend window.
 - Inviting into a full party offers to convert it to a raid.
 - Invite works like the game's own menu entry: it invites when you can, suggests the player to your leader when you are in a group without lead, and asks to join when you are alone and they are in a group. Turn off asking to join with Invite Asks to Join in the settings.
 
