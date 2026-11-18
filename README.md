@@ -28,4 +28,4 @@ Starting keys:
 
 The shortcuts are off in dungeons, raids and PvP matches, where the game hides player names.
 
-In chat, a plain click on a name opens a whisper as usual, and a shortcut click runs only the shortcut. Shift stays the game's own: Shift-click on a name inserts it or runs a /who.
+In chat, the game opens a whisper on every left-click on a name, so an Invite or Add Friend click there also opens the whisper box. Press Esc to close it. Shift stays the game's own: Shift-click on a name inserts it or runs a /who.

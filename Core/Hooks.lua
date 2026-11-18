@@ -16,8 +16,7 @@ end
 -- Every text that shows a player link calls SetItemRef with the click (ChatFrame.lua,
 -- CommunitiesChatFrame.xml), and Blizzard's handler runs first and cannot be cancelled: CHATLINK (Shift)
 -- inserts the name or runs a /who, any other left click opens a whisper (ItemRefHandlers.lua). The post-hook
--- serves the clicks the link cover below leaves to Blizzard: the CHATLINK key, lockdown and text outside the
--- chat windows.
+-- runs the shortcut after it, so an Invite or Add Friend click also leaves Blizzard's whisper box open.
 local function PlayerNameFromLink(link)
   local name = link:match("^player:([^:]+)") or link:match("^playerCommunity:([^:]+)")
   if name and name ~= "" then return name end
@@ -42,140 +41,6 @@ local function OnItemRef(link, _, button, chatFrame)
   local name = PlayerNameFromLink(link)
   if name then ns.RunAction(action, name, chatFrame) end
 end
-
--- While a key bound to Invite or Add Friend is held over a player name in chat, an addon button covers that
--- name and takes the click, and the chat window's links are off, so Blizzard never sees the click and no
--- whisper opens. The whisper key keeps Blizzard's own whisper.
---
--- The client itself says which name is under the cursor: a chat window reports the hovered link, its line and
--- the link's box when the cursor enters it, and reports when it leaves (ChatFrame.lua). The cover keeps that
--- report and works nothing out from the text. It only checks that the line still shows what it showed, since
--- new chat redraws the lines under a still cursor.
---
--- The cover sits on UIParent in DIALOG, placed in screen coordinates, and takes clicks by being shown. A second
--- frame watches while the cover is hidden. In game a chat link took the click even with the cover shown on top
--- of it as the mouse focus, so the cover alone cannot stop the whisper. The window's links are switched off for
--- as long as the cover shows, the way Blizzard switches them off for an uninteractable window
--- (FloatingChatFrame.lua). That is widget state, no Lua value of Blizzard's, so it taints nothing. Only links the
--- addon switched off are switched back on.
-local hovered = {} -- the reported link: active, name, line, text, left, bottom, width, height
-local mutedWindow -- the chat window whose links are off while the cover shows
-local box = {} -- the cover's box on screen in cursor units: left, bottom, right, top
-local linkWatch = CreateFrame("Frame")
-linkWatch:Hide()
-local linkCover = CreateFrame("Button", nil, UIParent)
-linkCover:SetFrameStrata("DIALOG")
-linkCover:RegisterForClicks("LeftButtonUp")
-linkCover:Hide()
-
-local function TakesChatClick()
-  local action = ns.HeldAction()
-  return action and action ~= "whisper" and not IsModifiedClick("CHATLINK")
-    and not C_ChatInfo.InChatMessagingLockdown()
-end
-
--- A line kept from restricted content can hold secret text, so it is checked before the comparison.
-local function LinkStillThere()
-  if not hovered.line:IsVisible() then return false end
-
-  local text = hovered.line:GetText()
-  return ns.CanAccess(text) and text == hovered.text
-end
-
-local function InBox(x, y)
-  return box.left and x >= box.left and x <= box.right and y >= box.bottom and y <= box.top
-end
-
--- The client reports the link's box inside its line. Blizzard's own code reads it from the line's bottom left
--- (GameDialogDefs.lua) and from its top left (Blizzard_EncounterJournal.lua), so the cover takes the reading
--- that holds the cursor, which is on the link while the client reports it. With neither, a square of the
--- link's height around the cursor still takes the click. Geometry turns secret where the client restricts it,
--- so it is checked first. UIParent need not start at the screen's corner, so its own origin is taken off.
-local function PlaceCover(x, y)
-  local line = hovered.line
-  local scale = line:GetParent():GetEffectiveScale()
-  local left, bottom, _, lineHeight = line:GetRect()
-  if not ns.CanAccess(scale) or not ns.CanAccess(left) or not left then return false end
-
-  local width, height = hovered.width * scale, hovered.height * scale
-  box.left, box.bottom = (left + hovered.left) * scale, (bottom + hovered.bottom) * scale
-  box.right, box.top = box.left + width, box.bottom + height
-  if not InBox(x, y) then
-    box.bottom = box.bottom + lineHeight * scale
-    box.top = box.bottom + height
-  end
-  if not InBox(x, y) then
-    box.left, box.bottom = x - height / 2, y - height / 2
-    box.right, box.top = box.left + height, box.bottom + height
-  end
-
-  local uiScale = UIParent:GetEffectiveScale()
-  local uiLeft, uiBottom = UIParent:GetRect()
-  linkCover:ClearAllPoints()
-  linkCover:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", box.left / uiScale - uiLeft, box.bottom / uiScale - uiBottom)
-  linkCover:SetSize((box.right - box.left) / uiScale, (box.top - box.bottom) / uiScale)
-  return true
-end
-
-local function ArmCover(arm)
-  if arm == linkCover:IsShown() then return end
-
-  linkCover:SetShown(arm)
-  if arm then
-    local window = hovered.line:GetParent():GetParent()
-    if window:GetHyperlinksEnabled() then
-      mutedWindow = window
-      window:SetHyperlinksEnabled(false)
-    end
-  elseif mutedWindow then
-    -- Links switched back on under the cursor can report it at once, so the window is let go first.
-    local window = mutedWindow
-    mutedWindow = nil
-    window:SetHyperlinksEnabled(true)
-  end
-end
-
--- Runs every frame from the report of a player link until the cursor is off it. The keys are read here, so a
--- key pressed while the cursor rests on the name needs no key event. While the cover shows, the client reports
--- the link as left, and the cover's own box says the cursor is still on the name. The box
--- is kept after the key is let go, so pressing it again without moving the cursor takes the click again.
-local function UpdateLinkCover()
-  local x, y = GetCursorPosition()
-  if not hovered.active and not InBox(x, y) then
-    box.left = nil
-    linkWatch:Hide()
-    ArmCover(false)
-    return
-  end
-
-  ArmCover(TakesChatClick() and LinkStillThere() and (box.left ~= nil or PlaceCover(x, y)) or false)
-end
-
--- Every report starts over: the box and the switched-off links of an earlier link never serve a new one. A link
--- from restricted content is a secret and is never read, and neither are a secret line or box.
-local function OnChatLinkEnter(link, line, left, bottom, width, height)
-  box.left = nil
-  ArmCover(false)
-  local name = ns.CanAccess(link) and type(link) == "string" and PlayerNameFromLink(link)
-  local text = name and line:GetText()
-  hovered.active = name and ns.CanAccess(text) and ns.CanAccess(left) and true or false
-  if not hovered.active then return end
-
-  hovered.name, hovered.line, hovered.text = name, line, text
-  hovered.left, hovered.bottom, hovered.width, hovered.height = left, bottom, width, height
-  linkWatch:Show()
-end
-
-local function OnChatLinkLeave()
-  hovered.active = false
-end
-
-linkWatch:SetScript("OnUpdate", UpdateLinkCover)
-linkCover:SetScript("OnClick", function()
-  local action = LinkStillThere() and ns.PickAction()
-  if action then ns.RunAction(action, hovered.name) end
-end)
-
 
 -- Unit frames ------------------------------------------------------------------------------------
 
@@ -339,11 +204,6 @@ end
 -- Hooks go in at file load rather than login, so no frame the client sets up in between is missed.
 hooksecurefunc("SetItemRef", OnItemRef)
 
--- Every chat window reports link hovers through these two events, with the link, its line and its box
--- (ChatFrame.lua).
-EventRegistry:RegisterCallback("ChatFrame.OnHyperlinkEnter", function(_, _, link, _, line, ...) OnChatLinkEnter(link, line, ...) end, ns)
-EventRegistry:RegisterCallback("ChatFrame.OnHyperlinkLeave", OnChatLinkLeave, ns)
-
 HookUnitFrames()
 
 -- The friends list rows keep the OnClick their template declares, so one wrapper per row survives.
@@ -364,13 +224,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_CompactRaidFrames", function()
   hooksecurefunc(CompactRaidFrameContainer, "GetUnitFrame", HookRaidContainerFrames)
 end)
 
--- The guild roster is the Communities member list, and every row click funnels through one call. The
--- Communities chat is a plain message frame without the chat window events, so its own link scripts are
--- hooked (CommunitiesChatFrame.xml).
+-- The guild roster is the Communities member list, and every row click funnels through one call.
 EventUtil.ContinueOnAddOnLoaded("Blizzard_Communities", function()
   hooksecurefunc(CommunitiesFrame.MemberList, "OnClubMemberButtonClicked", OnGuildMemberClick)
-
-  local messageFrame = CommunitiesFrame.Chat.MessageFrame
-  messageFrame:HookScript("OnHyperlinkEnter", function(_, link, _, line, ...) OnChatLinkEnter(link, line, ...) end)
-  messageFrame:HookScript("OnHyperlinkLeave", OnChatLinkLeave)
 end)
