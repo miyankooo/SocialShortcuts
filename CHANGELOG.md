@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/miyankooo/SocialShortcuts/compare/v1.3.1...v1.3.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* Modifier clicks on chat names always run, even with the cursor resting on the name ([1cc1e19](https://github.com/miyankooo/SocialShortcuts/commit/1cc1e19a9f68235440e2ccc4bb712fa6a75ee5b1))
+
 ## [1.3.1](https://github.com/miyankooo/SocialShortcuts/compare/v1.3.0...v1.3.1) (2026-11-17)
 
 
