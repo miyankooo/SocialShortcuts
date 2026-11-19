@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/miyankooo/SocialShortcuts/compare/v1.3.2...v2.0.0) (2026-11-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add Friend and the party and raid frame shortcuts are removed.
+
+### Features
+
+* Social Shortcuts only whispers and invites, on names and the target and focus frames ([6fbd93b](https://github.com/miyankooo/SocialShortcuts/commit/6fbd93bfbb458fb02f618c31a10ba83412b904c0))
+
 ## [1.3.2](https://github.com/miyankooo/SocialShortcuts/compare/v1.3.1...v1.3.2) (2026-11-18)
 
 
