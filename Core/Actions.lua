@@ -1,23 +1,11 @@
 local _, ns = ...
 
--- Adds a friend by name the way Blizzard's own Add Friend dialog does (AddFriendTemplates.lua,
--- AddFriendFrame_Accept): a WoW Friend request where the client uses WoW Friends, the character friends list
--- where it still has one, and Blizzard's own error where it has neither.
-local function AddFriend(name)
-  if C_BattleNet.AreTitleFriendsEnabled() then
-    C_BattleNet.SendTitleFriendInviteByName(name)
-  elseif C_FriendList.IsLegacyFriendSystemEnabled() then
-    C_FriendList.AddFriend(name)
-  else
-    UIErrorsFrame:AddExternalErrorMessage(ERR_SYSTEM_DISABLED)
-  end
-end
-
 -- Invite asks to join instead, like Blizzard's own menu entry turns into Request to Join Group while you
 -- are alone and the player is in a group (UnitPopupButtons.lua). Where the caller knows the player's group,
 -- as a unit frame or a Group Finder listing does, the request goes out inside the click. A name in chat or a
 -- list carries no group, so the invite goes out, and when the client answers that the player is already in
--- a group, the join request follows for the same name.
+-- a group, the join request follows for the same name. The request may go to any member: the server passes
+-- it on to their leader and names the member (C_PartyInfo.GetInviteReferralInfo, LFGUtil.lua).
 local JOIN_WINDOW = 3
 local pendingName, pendingTime
 local resultFrame = CreateFrame("Frame")
@@ -105,13 +93,11 @@ function ns.RunAction(action, name, chatFrame, grouped)
     ChatFrameUtil.SendTell(name, chatFrame)
   elseif action == "invite" then
     Invite(name, grouped)
-  elseif action == "friend" then
-    AddFriend(name)
   end
 end
 
 -- Battle.net friends need the account APIs, because a name-based action cannot reach an account that is
--- not on a character of this realm right now. Add Friend does nothing here: they are already a friend.
+-- not on a character of this realm right now.
 -- Invite there asks to join on its own when the friend is in a group (FriendsFrame_InviteOrRequestToJoin).
 function ns.RunBNetAction(action, accountIndex)
   local info = C_BattleNet.GetFriendAccountInfo(accountIndex)

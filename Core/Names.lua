@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- Blizzard's own invite, whisper and add-friend menu builds a unit's name from UnitNameUnmodified and joins
+-- Blizzard's own invite and whisper menu builds a unit's name from UnitNameUnmodified and joins
 -- the second part with the surname separator (" ") while regionally unique names are on, and with "-"
 -- across realms otherwise (Mainline/UnitPopupUtils.lua GetFullPlayerName). GetUnitName(unit, true) would
 -- not do: it ignores its argument, reads UnitName and joins any second part with a space, so a realm would

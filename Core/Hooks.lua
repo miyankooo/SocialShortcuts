@@ -1,7 +1,6 @@
 local _, ns = ...
 
--- Frames we have already wrapped, so a pooled row is never wrapped twice and does not fire the action
--- once per wrap.
+-- List rows are pooled and handed out again, so each is wrapped once and never fires the action twice.
 local hookedFrames = {}
 
 local function HookScriptOnce(frame, script, handler)
@@ -16,7 +15,7 @@ end
 -- Every text that shows a player link calls SetItemRef with the click (ChatFrame.lua,
 -- CommunitiesChatFrame.xml), and Blizzard's handler runs first and cannot be cancelled: CHATLINK (Shift)
 -- inserts the name or runs a /who, any other left click opens a whisper (ItemRefHandlers.lua). The post-hook
--- runs the shortcut after it, so an Invite or Add Friend click also leaves Blizzard's whisper box open.
+-- runs the shortcut after it, so an Invite click also leaves Blizzard's whisper box open.
 local function PlayerNameFromLink(link)
   local name = link:match("^player:([^:]+)") or link:match("^playerCommunity:([^:]+)")
   if name and name ~= "" then return name end
@@ -25,10 +24,9 @@ end
 local function OnItemRef(link, _, button, chatFrame)
   if button ~= "LeftButton" then return end
 
-  -- Blizzard's own link handler whispers on every left click that is not CHATLINK-modified (Shift by
-  -- default, ItemRefHandlers.lua), so that whisper is left to it, inside lockdown too, and the addon adds
-  -- no second one and no notice.
-  if ns.HeldAction() == "whisper" and not IsModifiedClick("CHATLINK") then return end
+  -- Blizzard's own handler already whispered, inside lockdown too, so the addon adds no second whisper and
+  -- no notice.
+  if ns.HeldAction() == "whisper" then return end
 
   -- The action is picked before the link is read, because inside restricted content the link is a secret
   -- that cannot be pattern matched, and PickAction refuses there.
@@ -42,7 +40,7 @@ local function OnItemRef(link, _, button, chatFrame)
   if name then ns.RunAction(action, name, chatFrame) end
 end
 
--- Unit frames ------------------------------------------------------------------------------------
+-- Target and focus frames ------------------------------------------------------------------------
 
 -- Unit comparison has restrictions of its own, apart from the chat lockdown: the client refuses a
 -- comparison it does not permit and returns a secret for a restricted one, so both are asked before
@@ -54,61 +52,26 @@ local function IsOtherPlayer(unit)
   return not UnitIsUnit(unit, "player")
 end
 
--- Compact frames carry displayedUnit and party member frames GetUnit, which keeps the member's own unit
--- while they ride a vehicle. Target and focus frames only carry unit.
 local function OnUnitFrameClick(frame, button)
   if button ~= "LeftButton" then return end
 
   local action = ns.PickAction()
   if not action then return end
 
-  local unit = frame.displayedUnit or (frame.GetUnit and frame:GetUnit()) or frame.unit
+  local unit = frame.unit
   if not unit or not IsOtherPlayer(unit) then return end
 
-  -- The name Blizzard's own unit menu would pass for this unit (Core/Names.lua), so invite and add friend
-  -- get "First Surname". The group check is the one Blizzard's menu makes before it offers Request to Join.
+  -- The name Blizzard's own unit menu would pass for this unit (Core/Names.lua), so invite gets
+  -- "First Surname". The group check is the one Blizzard's menu makes before it offers Request to Join.
   ns.RunAction(action, ns.UnitFullName(unit), nil, UnitInAnyGroup(unit, LE_PARTY_CATEGORY_HOME))
 end
 
-local function HookUnitFrame(frame)
-  HookScriptOnce(frame, "OnClick", OnUnitFrameClick)
-end
-
--- The compact setup also runs for nameplates and pet frames, which take no clicks and may be forbidden to
--- addon code. Party and raid player frames are the ones set up with DefaultCompactUnitFrameSetup
--- (CompactPartyFrame.lua, Blizzard_CompactRaidFrameContainer.lua), and the function is a plain value.
-local function OnCompactFrameSetUp(frame, setUpFunc)
-  if setUpFunc == DefaultCompactUnitFrameSetup then HookUnitFrame(frame) end
-end
-
--- The raid container passes the setup function it stored when it loaded
--- (Blizzard_CompactRaidFrameContainer.lua), so once another addon hooks DefaultCompactUnitFrameSetup the
--- check above misses its frames. Its player frames all sit in its normal update list, and the group frames
--- sharing that list carry no frameType.
-local function HookRaidContainerFrames(container)
-  for _, frame in ipairs(container.frameUpdateList.normal) do
-    if frame.frameType then HookUnitFrame(frame) end
-  end
-end
-
-local function HookPartyFrames()
-  for frame in PartyFrame.PartyMemberFramePool:EnumerateActive() do
-    HookUnitFrame(frame)
-  end
-end
-
+-- Party and raid frames are left out: everyone on them is already in the group, and a modifier-click there
+-- is Blizzard's click casting.
 local function HookUnitFrames()
-  HookUnitFrame(TargetFrame)
-  HookUnitFrame(TargetFrame.totFrame)
-  HookUnitFrame(FocusFrame)
-  HookUnitFrame(FocusFrame.totFrame)
-
-  -- Party member frames come from a pool, so re-walk it whenever the pool is rebuilt.
-  HookPartyFrames()
-  hooksecurefunc(PartyFrame, "InitializePartyMemberFrames", HookPartyFrames)
-
-  -- Raid frames and raid-style party frames all pass through this one setup call.
-  hooksecurefunc("CompactUnitFrame_SetUpFrame", OnCompactFrameSetUp)
+  for _, frame in ipairs({ TargetFrame, TargetFrame.totFrame, FocusFrame, FocusFrame.totFrame }) do
+    frame:HookScript("OnClick", OnUnitFrameClick)
+  end
 end
 
 -- Scrolling lists --------------------------------------------------------------------------------
@@ -216,12 +179,6 @@ end)
 EventUtil.ContinueOnAddOnLoaded("Blizzard_GroupFinder_VanillaStyle", function()
   AttachListClick(LFGWhoListFrame.ScrollBox, "OnMouseUp", OnWhoListMouseUp)
   hooksecurefunc("LFGBrowseSearchEntry_OnClick", OnBrowseEntryClick)
-end)
-
--- Raid frames in the flat layout come from the container, so its list is walked whenever it hands one out.
-EventUtil.ContinueOnAddOnLoaded("Blizzard_CompactRaidFrames", function()
-  HookRaidContainerFrames(CompactRaidFrameContainer)
-  hooksecurefunc(CompactRaidFrameContainer, "GetUnitFrame", HookRaidContainerFrames)
 end)
 
 -- The guild roster is the Communities member list, and every row click funnels through one call.

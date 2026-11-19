@@ -20,8 +20,7 @@ local macLabels = { NONE = NONE, CTRL = "Control", ALT = "Option", META = "Comma
 local pcLabels = { NONE = NONE, CTRL = "Ctrl", ALT = "Alt" }
 
 -- Fixed order so the dropdowns read the same every session, with the opt-out first. Windows leaves out its
--- third key, because the Windows key opens the Start menu over the game and no game option blocks it. A
--- saved binding on a key no longer offered is then unknown and falls back in LoadSettings.
+-- third key, because the Windows key opens the Start menu over the game and no game option blocks it.
 ns.modifierOrder = { "NONE", "CTRL", "ALT" }
 if isMac then table.insert(ns.modifierOrder, "META") end
 ns.modifierLabel = isMac and macLabels or pcLabels
@@ -34,22 +33,16 @@ local knownTokens = tInvert(ns.modifierOrder)
 ns.actions = {
   { key = "whisper", label = WHISPER, verb = "whisper", help = "Open a whisper to the clicked player." },
   {
-    key = "friend", label = ADD_FRIEND, verb = "add as a friend",
-    help = "Add the clicked player as a friend. Where the game uses WoW Friends, they get a friend request.",
-  },
-  {
     key = "invite", label = PARTY_INVITE, verb = "invite",
     help = "Invite the clicked player to your group. In a group you don't lead, it suggests them to your leader instead.",
   },
 }
 
--- Defaults follow reach from a hand on WASD: Invite, used most, gets the key next to the space bar, Whisper
--- the next easiest and Add Friend, used least, the farthest. Windows has two keys, so Add Friend starts
--- unbound there. The options panel reads these too, so its Defaults button restores the same values.
+-- Defaults follow reach from a hand on WASD: Invite, used more, gets the key next to the space bar. The
+-- options panel reads these too, so its Defaults button restores the same values.
 ns.defaults = {
   whisper = isMac and "ALT" or "CTRL",
   invite = isMac and "META" or "ALT",
-  friend = isMac and "CTRL" or "NONE",
   askToJoin = true,
 }
 
@@ -139,8 +132,8 @@ function ns.HeldAction()
 end
 
 -- Inside restricted content the client hands player names, chat links and listing leaders out as secret
--- values. Addon code can neither inspect a secret name nor pass one on: InviteUnit, RequestInviteFromUnit
--- and AddFriend are declared SecretArguments = "AllowedWhenUntainted", so a tainted caller handing them a
+-- values. Addon code can neither inspect a secret name nor pass one on: InviteUnit and RequestInviteFromUnit
+-- are declared SecretArguments = "AllowedWhenUntainted", so a tainted caller handing them a
 -- secret raises. Every click surface asks this first, and the lockdown question takes no argument, so it
 -- answers before any surface reads a name. A bound click there says so in Blizzard's red error text,
 -- because the default click that runs instead would look like the shortcut misfired.
@@ -153,31 +146,15 @@ function ns.PickAction()
   return action
 end
 
-local function IsKeyTaken(db, token)
-  for _, action in ipairs(ns.actions) do
-    if db[action.key] == token then return true end
-  end
-end
-
--- A token the dropdowns do not offer would bind nothing and leave its dropdown blank, so an unknown or
--- missing value falls back to the default, or to None when another action already holds that key. A toggle
--- keeps any saved true or false. Keys of settings the addon no longer has are dropped.
+-- Earlier versions offered keys this one does not (Shift, the Windows key), so a saved key that is no longer
+-- offered is unbound instead of staying bound with a blank dropdown.
 local function LoadSettings()
   local firstRun = type(SocialShortcutsDB) ~= "table"
-  if firstRun then SocialShortcutsDB = {} end
+  if firstRun then SocialShortcutsDB = CopyTable(ns.defaults) end
   local db = SocialShortcutsDB
 
-  for key, value in pairs(db) do
-    local default = ns.defaults[key]
-    local valid
-    if type(default) == "boolean" then valid = type(value) == "boolean" else valid = knownTokens[value] end
-    if default == nil or not valid then db[key] = nil end
-  end
   for _, action in ipairs(ns.actions) do
-    if db[action.key] == nil then
-      local default = ns.defaults[action.key]
-      db[action.key] = IsKeyTaken(db, default) and "NONE" or default
-    end
+    if not knownTokens[db[action.key]] then db[action.key] = "NONE" end
   end
   if db.askToJoin == nil then db.askToJoin = ns.defaults.askToJoin end
   ns.db = db

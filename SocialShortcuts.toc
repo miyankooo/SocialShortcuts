@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Social Shortcuts
-## Notes: Whispers, invites, asks to join or befriends a player when you modifier-click their name.
+## Notes: Whispers, invites or asks to join a player when you modifier-click their name.
 ## Author: miyanko
 ## Version: @project-version@
 ## Category: Chat
@@ -8,8 +8,6 @@
 ## X-Curse-Project-ID: 1786000
 ## SavedVariables: SocialShortcutsDB
 ## AddonCompartmentFunc: SocialShortcuts_CompartmentClick
-## AddonCompartmentFuncOnEnter: SocialShortcuts_CompartmentEnter
-## AddonCompartmentFuncOnLeave: SocialShortcuts_CompartmentLeave
 
 # Load order is the dependency order: Config exports the binding lookup and the secret guard, Names a
 # unit's name in Blizzard's own menu form, Actions the three things a binding can do, and Hooks wires the

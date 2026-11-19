@@ -102,9 +102,9 @@ local function IntroText()
   local last = table.remove(keys)
   local held = #keys > 0 and table.concat(keys, ", ") .. " or " .. last or last
 
-  return "Hold " .. held .. " and left-click a player's name or frame to whisper them, add them as a friend "
-    .. "or invite them, without the right-click menu. Pick the key for each action below.\n\n"
-    .. "Works in chat, on unit frames, in the friends list, the Who list, the guild roster and Group Finder.\n\n"
+  return "Hold " .. held .. " and left-click a player's name or frame to whisper or invite them, "
+    .. "without the right-click menu. Pick the key for each action below.\n\n"
+    .. "Works in chat, on the target and focus frames, in the friends list, the Who list, the guild roster and Group Finder.\n\n"
     .. "Other clicks work as always: a plain click on a name in chat opens a whisper, and Shift-click "
     .. "inserts the name or runs a /who."
 end
@@ -227,7 +227,7 @@ SlashCmdList.SOCIALSHORTCUTS = function(message)
   local command = strtrim(message or ""):lower()
   if command == "" then
     ns.OpenSettings()
-  elseif command == "help" or command == "?" then
+  elseif command == "help" then
     ns.Print("Type /ssc for the settings, /ssc intro to see the welcome line again, or /ssc help for this list.")
   elseif command == "intro" then
     ns.ReplayIntro()
@@ -236,24 +236,5 @@ SlashCmdList.SOCIALSHORTCUTS = function(message)
   end
 end
 
--- Addon Compartment entry points named in the toc. Blizzard calls them with the addon name first, then the
--- menu row.
+-- The Addon Compartment entry point named in the toc.
 SocialShortcuts_CompartmentClick = ns.OpenSettings
-
-function SocialShortcuts_CompartmentEnter(_, menuButton)
-  GameTooltip:SetOwner(menuButton, "ANCHOR_LEFT")
-  GameTooltip_SetTitle(GameTooltip, ns.title)
-  for _, action in ipairs(ns.actions) do
-    local token = ns.db[action.key]
-    if token ~= "NONE" then
-      GameTooltip_AddColoredDoubleLine(GameTooltip, ns.modifierLabel[token] .. "-click", action.label,
-        HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-    end
-  end
-  GameTooltip_AddInstructionLine(GameTooltip, "Click to open the settings.")
-  GameTooltip:Show()
-end
-
-function SocialShortcuts_CompartmentLeave()
-  GameTooltip:Hide()
-end
