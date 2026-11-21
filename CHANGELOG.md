@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/miyankooo/SocialShortcuts/compare/v2.0.0...v2.1.0) (2026-11-21)
+
+
+### Features
+
+* Add WoW Friend sends the clicked player a WoW Friend request ([b0b451e](https://github.com/miyankooo/SocialShortcuts/commit/b0b451ee4a11304335511fb28181f0020f0983b4))
+
 ## [2.0.0](https://github.com/miyankooo/SocialShortcuts/compare/v1.3.2...v2.0.0) (2026-11-19)
 
 
