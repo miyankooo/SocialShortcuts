@@ -33,16 +33,22 @@ local knownTokens = tInvert(ns.modifierOrder)
 ns.actions = {
   { key = "whisper", label = WHISPER, verb = "whisper", help = "Open a whisper to the clicked player." },
   {
+    key = "friend", label = ADD_WOW_FRIEND, verb = "add as a WoW Friend",
+    help = "Send the clicked player a WoW Friend request.",
+  },
+  {
     key = "invite", label = PARTY_INVITE, verb = "invite",
     help = "Invite the clicked player to your group. In a group you don't lead, it suggests them to your leader instead.",
   },
 }
 
--- Defaults follow reach from a hand on WASD: Invite, used more, gets the key next to the space bar. The
--- options panel reads these too, so its Defaults button restores the same values.
+-- Defaults follow reach from a hand on WASD: Invite, used most, gets the key next to the space bar, Whisper
+-- the next easiest and Add WoW Friend, used least, the farthest. Windows has two keys, so Add WoW Friend
+-- starts unbound there. The options panel reads these too, so its Defaults button restores the same values.
 ns.defaults = {
   whisper = isMac and "ALT" or "CTRL",
   invite = isMac and "META" or "ALT",
+  friend = isMac and "CTRL" or "NONE",
   askToJoin = true,
 }
 
@@ -132,10 +138,10 @@ function ns.HeldAction()
 end
 
 -- Inside restricted content the client hands player names, chat links and listing leaders out as secret
--- values. Addon code can neither inspect a secret name nor pass one on: InviteUnit and RequestInviteFromUnit
--- are declared SecretArguments = "AllowedWhenUntainted", so a tainted caller handing them a
--- secret raises. Every click surface asks this first, and the lockdown question takes no argument, so it
--- answers before any surface reads a name. A bound click there says so in Blizzard's red error text,
+-- values. Addon code can neither inspect a secret name nor pass one on: InviteUnit, RequestInviteFromUnit
+-- and SendTitleFriendInviteByName are declared SecretArguments = "AllowedWhenUntainted", so a tainted
+-- caller handing them a secret raises. Every click surface asks this first, and the lockdown question takes
+-- no argument, so it answers before any surface reads a name. A bound click there says so in Blizzard's red error text,
 -- because the default click that runs instead would look like the shortcut misfired.
 function ns.PickAction()
   local action = ns.HeldAction()

@@ -22,7 +22,7 @@ local function PrintWelcome(keysLabel, note)
     if token ~= "NONE" then table.insert(bindings, ns.modifierLabel[token] .. " to " .. action.verb) end
   end
 
-  local line = "Whispers or invites a player when you hold a key and left-click their name. Open the "
+  local line = "Whispers, invites or befriends a player when you hold a key and left-click their name. Open the "
     .. SurfaceLink(SETTINGS) .. " or type /ssc to choose your keys."
   if #bindings > 0 then line = line .. " " .. keysLabel .. ": " .. table.concat(bindings, ", ") .. "." end
   if note then line = line .. " " .. note end

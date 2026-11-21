@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Social Shortcuts
-## Notes: Whispers, invites or asks to join a player when you modifier-click their name.
+## Notes: Whispers, invites, asks to join or befriends a player when you modifier-click their name.
 ## Author: miyanko
 ## Version: @project-version@
 ## Category: Chat

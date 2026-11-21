@@ -15,7 +15,7 @@ end
 -- Every text that shows a player link calls SetItemRef with the click (ChatFrame.lua,
 -- CommunitiesChatFrame.xml), and Blizzard's handler runs first and cannot be cancelled: CHATLINK (Shift)
 -- inserts the name or runs a /who, any other left click opens a whisper (ItemRefHandlers.lua). The post-hook
--- runs the shortcut after it, so an Invite click also leaves Blizzard's whisper box open.
+-- runs the shortcut after it, so an Invite or Add WoW Friend click also leaves Blizzard's whisper box open.
 local function PlayerNameFromLink(link)
   local name = link:match("^player:([^:]+)") or link:match("^playerCommunity:([^:]+)")
   if name and name ~= "" then return name end
@@ -61,8 +61,9 @@ local function OnUnitFrameClick(frame, button)
   local unit = frame.unit
   if not unit or not IsOtherPlayer(unit) then return end
 
-  -- The name Blizzard's own unit menu would pass for this unit (Core/Names.lua), so invite gets
-  -- "First Surname". The group check is the one Blizzard's menu makes before it offers Request to Join.
+  -- The name Blizzard's own unit menu would pass for this unit (Core/Names.lua), so Invite and Add WoW
+  -- Friend get "First Surname". The group check is the one Blizzard's menu makes before it offers Request
+  -- to Join.
   ns.RunAction(action, ns.UnitFullName(unit), nil, UnitInAnyGroup(unit, LE_PARTY_CATEGORY_HOME))
 end
 

@@ -1,5 +1,16 @@
 local _, ns = ...
 
+-- WoW Forever keeps friends on Battle.net, so Add WoW Friend sends the request Blizzard's own Add Friend
+-- window sends for a character name (AddFriendTemplates.lua, AddFriendFrame_Accept), and shows Blizzard's
+-- own error where WoW Friends are off.
+local function AddFriend(name)
+  if C_BattleNet.AreTitleFriendsEnabled() then
+    C_BattleNet.SendTitleFriendInviteByName(name)
+  else
+    UIErrorsFrame:AddExternalErrorMessage(ERR_SYSTEM_DISABLED)
+  end
+end
+
 -- Invite asks to join instead, like Blizzard's own menu entry turns into Request to Join Group while you
 -- are alone and the player is in a group (UnitPopupButtons.lua). Where the caller knows the player's group,
 -- as a unit frame or a Group Finder listing does, the request goes out inside the click. A name in chat or a
@@ -93,11 +104,13 @@ function ns.RunAction(action, name, chatFrame, grouped)
     ChatFrameUtil.SendTell(name, chatFrame)
   elseif action == "invite" then
     Invite(name, grouped)
+  elseif action == "friend" then
+    AddFriend(name)
   end
 end
 
 -- Battle.net friends need the account APIs, because a name-based action cannot reach an account that is
--- not on a character of this realm right now.
+-- not on a character of this realm right now. Add WoW Friend does nothing here: they are already a friend.
 -- Invite there asks to join on its own when the friend is in a group (FriendsFrame_InviteOrRequestToJoin).
 function ns.RunBNetAction(action, accountIndex)
   local info = C_BattleNet.GetFriendAccountInfo(accountIndex)
