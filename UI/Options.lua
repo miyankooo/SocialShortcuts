@@ -1,11 +1,18 @@
 local _, ns = ...
 
 local dropdowns = {}
-local askToJoinCheckbox
+local checkboxes = {}
 
-local askToJoin = {
-  label = "Invite Asks to Join",
-  help = "While you're not in a group, inviting a player who is already in one asks to join their group instead.",
+-- Each option changes one action, so its row sits under that action's row.
+local options = {
+  whisper = {
+    key = "whisperTab", label = "Whisper in New Tab",
+    help = "Whisper on a name in chat opens a tab for that player and moves your whispers with them into it.",
+  },
+  invite = {
+    key = "askToJoin", label = "Invite Asks to Join",
+    help = "While you're not in a group, inviting a player who is already in one asks to join their group instead.",
+  },
 }
 
 -- Text in a font role: GameFontNormal (heading, gold), GameFontHighlight (body, white), GameFontDisable (muted,
@@ -42,10 +49,10 @@ end
 local ROW_HEIGHT, ROW_SPACING, LABEL_X, INTRO_Y, INTRO_GAP = 26, 9, 37, -64, 16
 local categoryID
 
--- The dropdowns and the checkbox share one left edge, CENTER -40 of the row, so the checkbox reads as part of
--- Invite above it. Its help sits a tight step under it.
+-- The dropdowns and the checkboxes share one left edge, CENTER -40 of the row, so a checkbox reads as part of
+-- the action above it. Its help sits a tight step under it and takes two lines of the 12 px body font.
 local CONTROL_X = -40
-local HELP_GAP = 4
+local HELP_GAP, HELP_HEIGHT = 4, 28
 
 local function BuildPanel(introText, restoreDefaults)
   local panel = CreateFrame("Frame")
@@ -68,11 +75,10 @@ local function BuildPanel(introText, restoreDefaults)
   return panel
 end
 
--- One row below the intro, its label in GameFontNormal from x 37 to the row's centre less 85. A checkbox
+-- One row y below the intro, its label in GameFontNormal from x 37 to the row's centre less 85. A checkbox
 -- (SettingsCheckboxTemplate) goes at the row's CENTER -80, a WowStyle1DropdownTemplate 220 wide at CENTER -48.
 -- Within one page, controls share one left edge.
-local function AddRow(panel, index, label, fillTooltip)
-  local y = -INTRO_GAP - (index - 1) * (ROW_HEIGHT + ROW_SPACING)
+local function AddRow(panel, y, label, fillTooltip)
   local row = CreateFrame("Frame", nil, panel)
   row:SetHeight(ROW_HEIGHT)
   row:SetPoint("TOPLEFT", panel.intro, "BOTTOMLEFT", -LABEL_X, y)
@@ -123,9 +129,9 @@ local function RefreshDropdowns()
   for _, dropdown in pairs(dropdowns) do dropdown:Update() end
 end
 
-local function AddActionRow(panel, action, index)
+local function AddActionRow(panel, action, y)
   local fillTooltip = FillHelp(action)
-  local row = AddRow(panel, index, action.label, fillTooltip)
+  local row = AddRow(panel, y, action.label, fillTooltip)
 
   local dropdown = CreateDropdown(row, 220)
   dropdown:SetPoint("LEFT", row, "CENTER", CONTROL_X, 0)
@@ -164,33 +170,33 @@ end
 
 -- The checkbox is the one Blizzard's settings list builds for a checkbox row (SettingsCheckboxControlMixin),
 -- placed on the addon's own canvas for the same taint reason as the dropdowns. It lines up with the left
--- edge of the Invite dropdown above it, since it only changes what Invite does. Its help shows under it,
+-- edge of the dropdown above it, since it only changes what that action does. Its help shows under it,
 -- because when it applies is not clear from the label alone. Init wires the click to its own callback
 -- registry, the way the list control listens to it.
-local function AddAskToJoinRow(panel, index)
-  local fillTooltip = FillHelp(askToJoin)
-  local row = AddRow(panel, index, askToJoin.label, fillTooltip)
+local function AddOptionRow(panel, option, y)
+  local fillTooltip = FillHelp(option)
+  local row = AddRow(panel, y, option.label, fillTooltip)
 
   local checkbox = CreateFrame("CheckButton", nil, row, "SettingsCheckboxTemplate")
   checkbox:SetPoint("LEFT", row, "CENTER", CONTROL_X, 0)
 
-  -- Below the checkbox and starting at its left edge, so a wrap grows down into free space and never into
-  -- the Invite row above.
+  -- Below the checkbox and starting at its left edge, so a wrap grows down into the space kept for it and
+  -- never into the action row above.
   local help = CreateText(row, GameFontHighlight)
   help:SetPoint("TOPLEFT", row, "BOTTOM", CONTROL_X, -HELP_GAP)
   help:SetPoint("TOPRIGHT", row, "BOTTOMRIGHT", -LABEL_X, -HELP_GAP)
-  help:SetText(askToJoin.help)
+  help:SetText(option.help)
 
-  checkbox:Init(ns.db.askToJoin, function() fillTooltip(SettingsTooltip) end)
+  checkbox:Init(ns.db[option.key], function() fillTooltip(SettingsTooltip) end)
   checkbox:RegisterCallback(SettingsCheckboxMixin.Event.OnValueChanged, function(_, checked)
-    ns.db.askToJoin = checked
+    ns.db[option.key] = checked
   end, row)
-  askToJoinCheckbox = checkbox
+  checkboxes[option.key] = checkbox
 end
 
 local function RestoreDefaults()
   for key, value in pairs(ns.defaults) do ns.db[key] = value end
-  askToJoinCheckbox:SetValue(ns.db.askToJoin)
+  for key, checkbox in pairs(checkboxes) do checkbox:SetValue(ns.db[key]) end
   local note = ns.FreeCommandKey()
   if note then ns.Print(note) end
   RefreshDropdowns()
@@ -198,8 +204,17 @@ end
 
 EventUtil.ContinueOnPlayerLogin(function()
   local panel = BuildPanel(IntroText(), RestoreDefaults)
-  for index, action in ipairs(ns.actions) do AddActionRow(panel, action, index) end
-  AddAskToJoinRow(panel, #ns.actions + 1)
+  local y = -INTRO_GAP
+  for _, action in ipairs(ns.actions) do
+    AddActionRow(panel, action, y)
+    y = y - ROW_HEIGHT - ROW_SPACING
+
+    local option = options[action.key]
+    if option then
+      AddOptionRow(panel, option, y)
+      y = y - ROW_HEIGHT - HELP_GAP - HELP_HEIGHT - ROW_SPACING
+    end
+  end
   RegisterPanel(panel)
 end)
 

@@ -49,6 +49,7 @@ ns.defaults = {
   whisper = isMac and "ALT" or "CTRL",
   invite = isMac and "META" or "ALT",
   friend = isMac and "CTRL" or "NONE",
+  whisperTab = true,
   askToJoin = true,
 }
 
@@ -153,7 +154,8 @@ function ns.PickAction()
 end
 
 -- Earlier versions offered keys this one does not (Shift, the Windows key), so a saved key that is no longer
--- offered is unbound instead of staying bound with a blank dropdown.
+-- offered is unbound instead of staying bound with a blank dropdown. An option the saved settings predate
+-- gets its default.
 local function LoadSettings()
   local firstRun = type(SocialShortcutsDB) ~= "table"
   if firstRun then SocialShortcutsDB = CopyTable(ns.defaults) end
@@ -162,7 +164,9 @@ local function LoadSettings()
   for _, action in ipairs(ns.actions) do
     if not knownTokens[db[action.key]] then db[action.key] = "NONE" end
   end
-  if db.askToJoin == nil then db.askToJoin = ns.defaults.askToJoin end
+  for key, value in pairs(ns.defaults) do
+    if db[key] == nil then db[key] = value end
+  end
   ns.db = db
 
   -- The first load on an account frees the Command key. UI/Welcome.lua greets at login and passes on the note.

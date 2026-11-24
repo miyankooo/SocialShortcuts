@@ -13,6 +13,16 @@ function ns.AddFriend(unit)
   end
 end
 
+-- A Whisper click on a name in chat moves the whisper to its own tab, the call Blizzard's Move to Whisper Window
+-- menu entry makes (UnitPopupPopoutChatButtonMixin), and opens the box in that tab. Blizzard offers the entry only
+-- while no tab is open for the player, and so does the shortcut: Blizzard's own click has then already opened the
+-- box, in that tab when the name was clicked there.
+function ns.WhisperInTab(name, chatFrame)
+  if FCFManager_GetNumDedicatedFrames("WHISPER", name) > 0 then return end
+
+  ChatFrameUtil.SendTell(name, FCF_OpenTemporaryWindow("WHISPER", name, chatFrame, true))
+end
+
 -- Invite asks to join instead, like Blizzard's own menu entry turns into Request to Join Group while you
 -- are alone and the player is in a group (UnitPopupButtons.lua). Where the caller knows the player's group,
 -- as a unit frame or a Group Finder listing does, the request goes out inside the click. A name in chat or a
@@ -95,15 +105,15 @@ end
 
 -- Each action makes the call Blizzard's own buttons make, so the addon never writes chat state itself.
 -- The friends list and the unit menu whisper through SendTell (Camelot/FriendsFrame.lua,
--- UnitPopupSharedButtonMixins.lua). Invite is Blizzard's one menu entry that reads Invite, Suggest Invite or
--- Request to Join Group by situation (UnitPopupUtils.lua, TryInvite). A chat click passes its frame, so the
--- whisper opens where Blizzard's own link handler would open it. Invites also offer to convert a full party
--- to a raid. A name alone cannot be befriended, so Add WoW Friend says where it works.
-function ns.RunAction(action, name, chatFrame, grouped)
+-- UnitPopupSharedButtonMixins.lua), which opens the chat box ready to whisper. Invite is Blizzard's one menu
+-- entry that reads Invite, Suggest Invite or Request to Join Group by situation (UnitPopupUtils.lua,
+-- TryInvite). Invites also offer to convert a full party to a raid. A name alone cannot be befriended, so Add
+-- WoW Friend says where it works.
+function ns.RunAction(action, name, grouped)
   if not name then return end
 
   if action == "whisper" then
-    ChatFrameUtil.SendTell(name, chatFrame)
+    ChatFrameUtil.SendTell(name)
   elseif action == "invite" then
     Invite(name, grouped)
   elseif action == "friend" then

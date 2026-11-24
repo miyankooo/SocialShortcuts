@@ -14,8 +14,9 @@ end
 
 -- Every text that shows a player link calls SetItemRef with the click (ChatFrame.lua,
 -- CommunitiesChatFrame.xml), and Blizzard's handler runs first and cannot be cancelled: CHATLINK (Shift)
--- inserts the name or runs a /who, any other left click opens a whisper (ItemRefHandlers.lua). The post-hook
--- runs the shortcut after it, so an Invite or Add WoW Friend click also leaves Blizzard's whisper box open.
+-- inserts the name or runs a /who, any other left click opens a whisper box (ItemRefHandlers.lua). The
+-- post-hook runs the shortcut after it: Whisper moves that whisper to its own tab while Whisper in New Tab is
+-- on, and an Invite or Add WoW Friend click leaves the box open.
 local function PlayerNameFromLink(link)
   local name = link:match("^player:([^:]+)") or link:match("^playerCommunity:([^:]+)")
   if name and name ~= "" then return name end
@@ -24,9 +25,11 @@ end
 local function OnItemRef(link, _, button, chatFrame)
   if button ~= "LeftButton" then return end
 
-  -- Blizzard's own handler already whispered, inside lockdown too, so the addon adds no second whisper and
-  -- no notice.
-  if ns.HeldAction() == "whisper" then return end
+  -- A Whisper click keeps Blizzard's own whisper box, with no notice, while Whisper in New Tab is off, and
+  -- inside lockdown, where the link is a secret.
+  if ns.HeldAction() == "whisper" and (not ns.db.whisperTab or C_ChatInfo.InChatMessagingLockdown()) then
+    return
+  end
 
   -- The action is picked before the link is read, because inside restricted content the link is a secret
   -- that cannot be pattern matched, and PickAction refuses there.
@@ -37,7 +40,13 @@ local function OnItemRef(link, _, button, chatFrame)
   if not ns.CanAccess(link) or type(link) ~= "string" then return end
 
   local name = PlayerNameFromLink(link)
-  if name then ns.RunAction(action, name, chatFrame) end
+  if not name then return end
+
+  if action == "whisper" then
+    ns.WhisperInTab(name, chatFrame)
+  else
+    ns.RunAction(action, name)
+  end
 end
 
 -- Target and focus frames ------------------------------------------------------------------------
@@ -68,7 +77,7 @@ local function OnUnitFrameClick(frame, button)
 
   -- The name Blizzard's own unit menu would pass for this unit (Core/Names.lua), so Invite gets "First
   -- Surname". The group check is the one Blizzard's menu makes before it offers Request to Join.
-  ns.RunAction(action, ns.UnitFullName(unit), nil, UnitInAnyGroup(unit, LE_PARTY_CATEGORY_HOME))
+  ns.RunAction(action, ns.UnitFullName(unit), UnitInAnyGroup(unit, LE_PARTY_CATEGORY_HOME))
 end
 
 -- Party and raid frames are left out: everyone on them is already in the group, and a modifier-click there
@@ -143,7 +152,7 @@ local function OnBrowseEntryClick(frame, button)
   if invite then
     invite()
   elseif not grouped or ns.AsksToJoin() then
-    ns.RunAction("invite", leader, nil, grouped)
+    ns.RunAction("invite", leader, grouped)
   else
     UIErrorsFrame:AddExternalErrorMessage("Invite isn't available for this listing.")
   end
