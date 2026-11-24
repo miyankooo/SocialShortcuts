@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.0](https://github.com/miyankooo/SocialShortcuts/compare/v2.1.0...v2.2.0) (2026-11-24)
+
+
+### Features
+
+* the settings page gives Whisper, Add WoW Friend and Invite their own sections ([ecab07f](https://github.com/miyankooo/SocialShortcuts/commit/ecab07fff1e7928898c77ba12beee18a69c35de2))
+* Whisper on a name in chat opens a whisper tab for that player ([0f3ff55](https://github.com/miyankooo/SocialShortcuts/commit/0f3ff55565146e484205a9823d80c454d771209a))
+
+
+### Bug Fixes
+
+* Add WoW Friend sends its request through the game's own confirmation ([1c3a863](https://github.com/miyankooo/SocialShortcuts/commit/1c3a8630614aa3740f3d79362af097758ee22b0c))
+
 ## [2.1.0](https://github.com/miyankooo/SocialShortcuts/compare/v2.0.0...v2.1.0) (2026-11-21)
 
 
