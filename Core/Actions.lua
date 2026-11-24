@@ -1,11 +1,13 @@
 local _, ns = ...
 
--- WoW Forever keeps friends on Battle.net, so Add WoW Friend sends the request Blizzard's own Add Friend
--- window sends for a character name (AddFriendTemplates.lua, AddFriendFrame_Accept), and shows Blizzard's
--- own error where WoW Friends are off.
-local function AddFriend(name)
+-- The client refuses friend requests by name from addon code: SendTitleFriendInviteByName,
+-- C_Club.SendTitleFriendRequest and C_FriendList.AddFriend are tagged HasRestrictions, and on 1.60.1 a /run of
+-- C_FriendList.AddFriend raised ADDON_ACTION_BLOCKED. Add WoW Friend therefore makes the call Blizzard's own unit
+-- menu makes (UnitPopupAddTitleFriendButtonMixin), which takes a unit and carries no restriction. The game then
+-- asks to confirm in its own window, whose Send button sends the request (AddFriendTemplates.lua).
+function ns.AddFriend(unit)
   if C_BattleNet.AreTitleFriendsEnabled() then
-    C_BattleNet.SendTitleFriendInviteByName(name)
+    C_BattleNet.BNCheckTitleFriendInviteToUnit(unit)
   else
     UIErrorsFrame:AddExternalErrorMessage(ERR_SYSTEM_DISABLED)
   end
@@ -96,7 +98,7 @@ end
 -- UnitPopupSharedButtonMixins.lua). Invite is Blizzard's one menu entry that reads Invite, Suggest Invite or
 -- Request to Join Group by situation (UnitPopupUtils.lua, TryInvite). A chat click passes its frame, so the
 -- whisper opens where Blizzard's own link handler would open it. Invites also offer to convert a full party
--- to a raid.
+-- to a raid. A name alone cannot be befriended, so Add WoW Friend says where it works.
 function ns.RunAction(action, name, chatFrame, grouped)
   if not name then return end
 
@@ -105,7 +107,7 @@ function ns.RunAction(action, name, chatFrame, grouped)
   elseif action == "invite" then
     Invite(name, grouped)
   elseif action == "friend" then
-    AddFriend(name)
+    UIErrorsFrame:AddExternalErrorMessage(ADD_WOW_FRIEND .. " works on the target and focus frames.")
   end
 end
 

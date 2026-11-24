@@ -34,7 +34,7 @@ ns.actions = {
   { key = "whisper", label = WHISPER, verb = "whisper", help = "Open a whisper to the clicked player." },
   {
     key = "friend", label = ADD_WOW_FRIEND, verb = "add as a WoW Friend",
-    help = "Send the clicked player a WoW Friend request.",
+    help = "Send your target or focus a WoW Friend request. The game asks you to confirm it.",
   },
   {
     key = "invite", label = PARTY_INVITE, verb = "invite",
@@ -138,11 +138,11 @@ function ns.HeldAction()
 end
 
 -- Inside restricted content the client hands player names, chat links and listing leaders out as secret
--- values. Addon code can neither inspect a secret name nor pass one on: InviteUnit, RequestInviteFromUnit
--- and SendTitleFriendInviteByName are declared SecretArguments = "AllowedWhenUntainted", so a tainted
--- caller handing them a secret raises. Every click surface asks this first, and the lockdown question takes
--- no argument, so it answers before any surface reads a name. A bound click there says so in Blizzard's red error text,
--- because the default click that runs instead would look like the shortcut misfired.
+-- values. Addon code can neither inspect a secret name nor pass one on: InviteUnit and RequestInviteFromUnit
+-- are declared SecretArguments = "AllowedWhenUntainted", so a tainted caller handing them a secret raises.
+-- Every click surface asks this first, and the lockdown question takes no argument, so it answers before any
+-- surface reads a name. A bound click there says so in Blizzard's red error text, because the default click
+-- that runs instead would look like the shortcut misfired.
 function ns.PickAction()
   local action = ns.HeldAction()
   if action and C_ChatInfo.InChatMessagingLockdown() then

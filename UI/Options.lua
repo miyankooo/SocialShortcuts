@@ -104,7 +104,8 @@ local function IntroText()
 
   return "Hold " .. held .. " and left-click a player's name or frame to whisper them, add them as a WoW "
     .. "Friend or invite them, without the right-click menu. Pick the key for each action below.\n\n"
-    .. "Works in chat, on the target and focus frames, in the friends list, the Who list, the guild roster and Group Finder.\n\n"
+    .. "Works in chat, on the target and focus frames, in the friends list, the Who list, the guild roster and Group Finder. "
+    .. "Add WoW Friend works on the target and focus frames only.\n\n"
     .. "Other clicks work as always: a plain click on a name in chat opens a whisper, and Shift-click "
     .. "inserts the name or runs a /who."
 end
