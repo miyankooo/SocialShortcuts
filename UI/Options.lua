@@ -3,7 +3,7 @@ local _, ns = ...
 local dropdowns = {}
 local checkboxes = {}
 
--- Each option changes one action, so its row sits under that action's row.
+-- Each option changes one action, so its row sits in that action's section.
 local options = {
   whisper = {
     key = "whisperTab", label = "Whisper in New Tab",
@@ -46,13 +46,11 @@ end
 -- (Blizzard_SettingsList.xml:14-30, Blizzard_SettingControls.xml, Blizzard_SettingControls.lua). Never a settings
 -- list: a pick in a list dropdown runs addon code in Blizzard's pooled controls and taints its settings until /reload.
 -- Seen here on build 70532: nameplate errors until /reload (2026-10-21).
-local ROW_HEIGHT, ROW_SPACING, LABEL_X, INTRO_Y, INTRO_GAP = 26, 9, 37, -64, 16
+local ROW_HEIGHT, ROW_SPACING, LABEL_X, INTRO_Y = 26, 9, 37, -64
 local categoryID
 
--- The dropdowns and the checkboxes share one left edge, CENTER -40 of the row, so a checkbox reads as part of
--- the action above it. Its help sits a tight step under it and takes two lines of the 12 px body font.
+-- The dropdowns and the checkboxes share one left edge, CENTER -40 of the row.
 local CONTROL_X = -40
-local HELP_GAP, HELP_HEIGHT = 4, 28
 
 local function BuildPanel(introText, restoreDefaults)
   local panel = CreateFrame("Frame")
@@ -75,14 +73,13 @@ local function BuildPanel(introText, restoreDefaults)
   return panel
 end
 
--- One row y below the intro, its label in GameFontNormal from x 37 to the row's centre less 85. A checkbox
--- (SettingsCheckboxTemplate) goes at the row's CENTER -80, a WowStyle1DropdownTemplate 220 wide at CENTER -48.
--- Within one page, controls share one left edge.
-local function AddRow(panel, y, label, fillTooltip)
+-- One row under the one above it, as wide as the page, its label in GameFontNormal from x 37 to the row's
+-- centre less 85. Its control starts at the row's CENTER -40.
+local function AddRow(panel, above, label, fillTooltip)
   local row = CreateFrame("Frame", nil, panel)
   row:SetHeight(ROW_HEIGHT)
-  row:SetPoint("TOPLEFT", panel.intro, "BOTTOMLEFT", -LABEL_X, y)
-  row:SetPoint("TOPRIGHT", panel.intro, "BOTTOMRIGHT", LABEL_X, y)
+  row:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, -ROW_SPACING)
+  row:SetPoint("TOPRIGHT", above, "BOTTOMRIGHT", 0, -ROW_SPACING)
   row:EnableMouse(true)
   AttachTooltip(row, fillTooltip)
   local text = CreateText(row, GameFontNormal)
@@ -92,6 +89,25 @@ local function AddRow(panel, y, label, fillTooltip)
   return row
 end
 
+-- One section per action, headed as Blizzard's settings list heads a group (SettingsListSectionHeaderTemplate,
+-- Blizzard_SettingControls.xml:12-20): a 45 px slot, its title in GameFontHighlightLarge at 7, -16. The page's
+-- own divider runs under the title, 8 below it as under the page title.
+local function AddSection(panel, above, title)
+  local inset = above == panel.intro and LABEL_X or 0
+  local header = CreateFrame("Frame", nil, panel)
+  header:SetHeight(45)
+  header:SetPoint("TOPLEFT", above, "BOTTOMLEFT", -inset, 0)
+  header:SetPoint("TOPRIGHT", above, "BOTTOMRIGHT", inset, 0)
+  local text = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+  text:SetJustifyH("LEFT")
+  text:SetPoint("TOPLEFT", 7, -16)
+  text:SetText(title)
+  local divider = header:CreateTexture(nil, "ARTWORK")
+  divider:SetAtlas("Options_HorizontalDivider", true)
+  divider:SetPoint("TOP", 0, -40)
+  return header
+end
+
 local function RegisterPanel(panel)
   local category = Settings.RegisterCanvasLayoutCategory(panel, ns.title)
   Settings.RegisterAddOnCategory(category)
@@ -99,22 +115,9 @@ local function RegisterPanel(panel)
 end
 
 -- The page is the addon's only visible surface, so its top says what the keys do before any row asks for
--- one. The keys are named from the platform's own list, so Windows never reads Command.
-local function IntroText()
-  local keys = {}
-  for _, token in ipairs(ns.modifierOrder) do
-    if token ~= "NONE" then table.insert(keys, ns.modifierLabel[token]) end
-  end
-  local last = table.remove(keys)
-  local held = #keys > 0 and table.concat(keys, ", ") .. " or " .. last or last
-
-  return "Hold " .. held .. " and left-click a player's name or frame to whisper them, add them as a WoW "
-    .. "Friend or invite them, without the right-click menu. Pick the key for each action below.\n\n"
-    .. "Works in chat, on the target and focus frames, in the friends list, the Who list, the guild roster and Group Finder. "
-    .. "Add WoW Friend works on the target and focus frames only.\n\n"
-    .. "Other clicks work as always: a plain click on a name in chat opens a whisper, and Shift-click "
-    .. "inserts the name or runs a /who."
-end
+-- one. Where each action works is in its tooltip.
+local INTRO = "Hold a key and left-click a player's name or frame to whisper, befriend or invite them. "
+  .. "Plain clicks and Shift-click work as always."
 
 -- The tooltip a row and its control share: the setting's name over its help.
 local function FillHelp(entry)
@@ -129,9 +132,9 @@ local function RefreshDropdowns()
   for _, dropdown in pairs(dropdowns) do dropdown:Update() end
 end
 
-local function AddActionRow(panel, action, y)
+local function AddKeyRow(panel, above, action)
   local fillTooltip = FillHelp(action)
-  local row = AddRow(panel, y, action.label, fillTooltip)
+  local row = AddRow(panel, above, "Key", fillTooltip)
 
   local dropdown = CreateDropdown(row, 220)
   dropdown:SetPoint("LEFT", row, "CENTER", CONTROL_X, 0)
@@ -166,32 +169,25 @@ local function AddActionRow(panel, action, y)
   -- Generated once here, because the frame is hidden until the panel shows it.
   dropdown:GenerateMenu()
   dropdowns[action.key] = dropdown
+  return row
 end
 
 -- The checkbox is the one Blizzard's settings list builds for a checkbox row (SettingsCheckboxControlMixin),
--- placed on the addon's own canvas for the same taint reason as the dropdowns. It lines up with the left
--- edge of the dropdown above it, since it only changes what that action does. Its help shows under it,
--- because when it applies is not clear from the label alone. Init wires the click to its own callback
--- registry, the way the list control listens to it.
-local function AddOptionRow(panel, option, y)
+-- placed on the addon's own canvas for the same taint reason as the dropdowns. Its help is in the tooltip the
+-- row and the checkbox share. Init wires the click to its own callback registry, the way the list control
+-- listens to it.
+local function AddOptionRow(panel, above, option)
   local fillTooltip = FillHelp(option)
-  local row = AddRow(panel, y, option.label, fillTooltip)
+  local row = AddRow(panel, above, option.label, fillTooltip)
 
   local checkbox = CreateFrame("CheckButton", nil, row, "SettingsCheckboxTemplate")
   checkbox:SetPoint("LEFT", row, "CENTER", CONTROL_X, 0)
-
-  -- Below the checkbox and starting at its left edge, so a wrap grows down into the space kept for it and
-  -- never into the action row above.
-  local help = CreateText(row, GameFontHighlight)
-  help:SetPoint("TOPLEFT", row, "BOTTOM", CONTROL_X, -HELP_GAP)
-  help:SetPoint("TOPRIGHT", row, "BOTTOMRIGHT", -LABEL_X, -HELP_GAP)
-  help:SetText(option.help)
-
   checkbox:Init(ns.db[option.key], function() fillTooltip(SettingsTooltip) end)
   checkbox:RegisterCallback(SettingsCheckboxMixin.Event.OnValueChanged, function(_, checked)
     ns.db[option.key] = checked
   end, row)
   checkboxes[option.key] = checkbox
+  return row
 end
 
 local function RestoreDefaults()
@@ -203,17 +199,12 @@ local function RestoreDefaults()
 end
 
 EventUtil.ContinueOnPlayerLogin(function()
-  local panel = BuildPanel(IntroText(), RestoreDefaults)
-  local y = -INTRO_GAP
+  local panel = BuildPanel(INTRO, RestoreDefaults)
+  local above = panel.intro
   for _, action in ipairs(ns.actions) do
-    AddActionRow(panel, action, y)
-    y = y - ROW_HEIGHT - ROW_SPACING
-
+    above = AddKeyRow(panel, AddSection(panel, above, action.label), action)
     local option = options[action.key]
-    if option then
-      AddOptionRow(panel, option, y)
-      y = y - ROW_HEIGHT - HELP_GAP - HELP_HEIGHT - ROW_SPACING
-    end
+    if option then above = AddOptionRow(panel, above, option) end
   end
   RegisterPanel(panel)
 end)
